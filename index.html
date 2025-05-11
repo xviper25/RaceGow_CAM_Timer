@@ -15,50 +15,35 @@
             --warning-color: #ffc107;
             --danger-color: #dc3545;
             --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            
-            --zone-selector-bg: rgba(0, 123, 255, 0.20); /* Light blue, semi-transparent */
-            --zone-selector-border: rgba(0, 123, 255, 0.7);
-             /* Increase handle size for touch */
-            --zone-handle-size: 14px;
-            --zone-handle-bg: #007bff;
         }
-
-        body {
-            font-family: var(--font-family);
-            margin: 0;
-            padding: 0;
-            background-color: var(--background-color);
-            color: var(--text-color);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            overscroll-behavior: none; /* Prevent pull-to-refresh etc. */
+        body { 
+            font-family: var(--font-family); 
+            margin: 0; padding: 0; 
+            background-color: var(--background-color); 
+            color: var(--text-color); 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            overscroll-behavior: none; 
         }
-         /* Prevent ALL scrolling and gestures on the body when interacting */
-        body.zone-interaction-active {
-             overflow: hidden;
+        .container { 
+            width: 100%; 
+            max-width: 600px; 
+            padding: 15px; 
+            box-sizing: border-box; 
         }
-
-        .container {
-            width: 100%;
-            max-width: 600px;
-            padding: 15px;
-            box-sizing: border-box;
-        }
-
-        header {
-            background-color: var(--primary-color);
-            color: white;
-            padding: 15px;
-            text-align: center;
-            font-size: 1.5em;
-            font-weight: bold;
-            width: 100%;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 15px;
+        header { 
+            background-color: var(--primary-color); 
+            color: white; padding: 15px; 
+            text-align: center; 
+            font-size: 1.5em; 
+            font-weight: bold; 
+            width: 100%; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+            margin-bottom: 15px; 
         }
         header h1 { margin: 0; font-size: 1.2em; }
-
+        
         .video-container {
             position: relative;
             width: 100%;
@@ -66,59 +51,10 @@
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            user-select: none; 
-            -webkit-user-select: none;
-             -ms-user-select: none;
-             -webkit-touch-callout: none; /* Disable touch-and-hold menu */
         }
 
-        #videoFeed {
-            width: 100%;
-            display: block;
-            transform: scaleX(-1);
-             pointer-events: none; /* Ensure video doesn't eat events */
-        }
-
-        #detectionCanvas { /* For the final green outline */
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%; 
-            height: 100%;
-            pointer-events: none;
-        }
-
-        #zoneSelectorDiv { /* Interactive DIV for setting the zone */
-            position: absolute;
-            background-color: var(--zone-selector-bg);
-            border: 2px solid var(--zone-selector-border);
-            box-sizing: border-box;
-            cursor: move;
-            z-index: 10; 
-            display: none; /* Hidden initially */
-            touch-action: none; /* IMPORTANT: Prevent browser gestures on the zone itself */
-        }
-
-        .resize-handle {
-            position: absolute;
-            width: var(--zone-handle-size);
-            height: var(--zone-handle-size);
-            background-color: var(--zone-handle-bg);
-            border: 1px solid white;
-            border-radius: 3px; 
-            box-sizing: border-box;
-            z-index: 11;
-            touch-action: none; /* IMPORTANT: Prevent browser gestures on handles */
-        }
-        /* Position handles half-way out to make grabbing corners easier */
-        .handle-nw { top: calc(var(--zone-handle-size) / -2); left: calc(var(--zone-handle-size) / -2); cursor: nwse-resize; }
-        .handle-ne { top: calc(var(--zone-handle-size) / -2); right: calc(var(--zone-handle-size) / -2); cursor: nesw-resize; }
-        .handle-sw { bottom: calc(var(--zone-handle-size) / -2); left: calc(var(--zone-handle-size) / -2); cursor: nesw-resize; }
-        .handle-se { bottom: calc(var(--zone-handle-size) / -2); right: calc(var(--zone-handle-size) / -2); cursor: nwse-resize; }
-        .handle-n { top: calc(var(--zone-handle-size) / -2); left: 50%; transform: translateX(-50%); cursor: ns-resize; }
-        .handle-s { bottom: calc(var(--zone-handle-size) / -2); left: 50%; transform: translateX(-50%); cursor: ns-resize; }
-        .handle-w { top: 50%; left: calc(var(--zone-handle-size) / -2); transform: translateY(-50%); cursor: ew-resize; }
-        .handle-e { top: 50%; right: calc(var(--zone-handle-size) / -2); transform: translateY(-50%); cursor: ew-resize; }
+        #videoFeed { width: 100%; display: block; /* transform: scaleX(-1); <-- This will be dynamic */ }
+        #detectionCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         
         #zoneInstructionOverlay {
             position: absolute;
@@ -137,27 +73,37 @@
             transition: opacity 0.4s ease-out;
         }
 
-       /* --- Styles for Controls, Stats, Laps, Session --- */
-       /* (These are unchanged from your previous version) */
+        .camera-controls {
+            background-color: var(--surface-color); padding: 10px 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .camera-controls h2 { margin-top: 0; font-size: 1.2em; color: var(--primary-color); border-bottom: 1px solid #eee; padding-bottom: 8px; }
+        .camera-controls select {
+            width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ccc;
+            font-size: 1em; margin-top: 5px; box-sizing: border-box;
+        }
+
+        .zone-setup-controls { background-color: var(--surface-color); padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .zone-setup-controls h2 { margin-top: 0; font-size: 1.2em; color: var(--primary-color); border-bottom: 1px solid #eee; padding-bottom: 8px; }
+        .zone-slider-group { margin-bottom: 10px; }
+        .zone-slider-group label { display: block; margin-bottom: 3px; font-size: 0.9em; color: var(--secondary-color); }
+        .zone-slider-group input[type="range"] { width: calc(100% - 50px); margin-right: 10px; vertical-align: middle; }
+        .zone-slider-group span { font-size: 0.9em; min-width: 35px; display: inline-block; text-align: right; vertical-align: middle;}
+
        .controls, .session-controls, .stats-display, .lap-list-container { background-color: var(--surface-color); padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
        .controls h2, .session-controls h2, .stats-display h2, .lap-list-container h2 { margin-top: 0; font-size: 1.2em; color: var(--primary-color); border-bottom: 1px solid #eee; padding-bottom: 8px; }
        button { background-color: var(--primary-color); color: white; border: none; padding: 10px 15px; margin: 5px; border-radius: 5px; cursor: pointer; font-size: 1em; transition: background-color 0.2s ease; }
        button:hover:not(:disabled) { background-color: #0056b3; }
        button:disabled { background-color: var(--secondary-color); cursor: not-allowed; }
-       .btn-success { background-color: var(--success-color); }
-       .btn-success:hover:not(:disabled) { background-color: #1e7e34; }
-       .btn-warning { background-color: var(--warning-color); color: #333; }
-       .btn-warning:hover:not(:disabled) { background-color: #d39e00; }
-       .btn-danger { background-color: var(--danger-color); }
-       .btn-danger:hover:not(:disabled) { background-color: #bd2130; }
-       input[type="text"], input[type="range"] { padding: 8px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; width: calc(100% - 10px); }
+       .btn-success { background-color: var(--success-color); } .btn-success:hover:not(:disabled) { background-color: #1e7e34; }
+       .btn-warning { background-color: var(--warning-color); color: #333; } .btn-warning:hover:not(:disabled) { background-color: #d39e00; }
+       .btn-danger { background-color: var(--danger-color); } .btn-danger:hover:not(:disabled) { background-color: #bd2130; }
+       input[type="text"], input[type="range"]:not(.zone-slider-group input[type="range"]) { padding: 8px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; width: calc(100% - 10px); }
        .slider-container { display: flex; align-items: center; margin-bottom: 10px; }
        .slider-container label { margin-right: 10px; white-space: nowrap; }
        .slider-container input[type="range"] { flex-grow: 1; }
        .slider-container span { min-width: 30px; text-align: right; }
        #lapTimesList { list-style-type: none; padding: 0; max-height: 200px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; }
-       #lapTimesList li { padding: 8px 10px; border-bottom: 1px solid #eee; }
-       #lapTimesList li:last-child { border-bottom: none; }
+       #lapTimesList li { padding: 8px 10px; border-bottom: 1px solid #eee; } #lapTimesList li:last-child { border-bottom: none; }
        #lapTimesList li.best-lap { background-color: #e6ffed; font-weight: bold; }
        .status-message { padding: 10px; margin-bottom: 15px; border-radius: 5px; text-align: center; }
        .status-info { background-color: #e7f3fe; color: #0c5460; border: 1px solid #b8daff;}
@@ -171,30 +117,45 @@
        .stat-item .label { font-size: 0.8em; color: var(--secondary-color); display: block; margin-bottom: 5px; }
        .stat-item .value { font-size: 1.4em; font-weight: bold; color: var(--primary-color); }
        .stat-item .value.small { font-size: 1em; }
-
     </style>
 </head>
 <body>
-     <header><h1>Racegow FPV Lap Timer</h1></header>
-
+    <header><h1>Racegow FPV Lap Timer</h1></header>
     <div class="container">
         <div id="statusMessage" class="status-message status-info">Initializing camera...</div>
+        
+        <div class="camera-controls">
+            <h2>Camera Selection</h2>
+            <select id="cameraSelect"></select>
+        </div>
 
         <div class="video-container">
-             <!-- HTML unchanged -->
             <video id="videoFeed" playsinline autoplay muted></video>
             <canvas id="detectionCanvas"></canvas>
-            <div id="zoneSelectorDiv">
-                <div class="resize-handle handle-nw" data-handle="nw"></div> <div class="resize-handle handle-ne" data-handle="ne"></div>
-                <div class="resize-handle handle-sw" data-handle="sw"></div> <div class="resize-handle handle-se" data-handle="se"></div>
-                <div class="resize-handle handle-n" data-handle="n"></div>   <div class="resize-handle handle-s" data-handle="s"></div>
-                <div class="resize-handle handle-w" data-handle="w"></div>   <div class="resize-handle handle-e" data-handle="e"></div>
+            <div id="zoneInstructionOverlay">Adjust zone using sliders below, then start.</div>
+        </div>
+
+        <div class="zone-setup-controls">
+            <h2>Detection Zone Setup</h2>
+            <div class="zone-slider-group">
+                <label for="offsetTopSlider">Offset Top:</label>
+                <input type="range" id="offsetTopSlider" min="0" max="100" value="25"><span id="offsetTopValue"></span>
             </div>
-            <div id="zoneInstructionOverlay">Adjust zone to cover finish line. Drag to move, use handles to resize.</div>
+            <div class="zone-slider-group">
+                <label for="offsetBottomSlider">Offset Bottom:</label>
+                <input type="range" id="offsetBottomSlider" min="0" max="100" value="25"><span id="offsetBottomValue"></span>
+            </div>
+            <div class="zone-slider-group">
+                <label for="offsetLeftSlider">Offset Left:</label>
+                <input type="range" id="offsetLeftSlider" min="0" max="100" value="25"><span id="offsetLeftValue"></span>
+            </div>
+            <div class="zone-slider-group">
+                <label for="offsetRightSlider">Offset Right:</label>
+                <input type="range" id="offsetRightSlider" min="0" max="100" value="25"><span id="offsetRightValue"></span>
+            </div>
         </div>
 
         <div class="controls">
-             <!-- HTML unchanged -->
             <h2>Timer Controls</h2>
             <div class="flex-controls">
                 <button id="startTimerBtn" class="btn-success" disabled>Start Timer</button>
@@ -202,51 +163,60 @@
                 <button id="resetTimerBtn" class="btn-warning">Reset All</button>
             </div>
             <div class="slider-container">
-                <label for="sensitivityRange">Sensitivity:</label>
-                <input type="range" id="sensitivityRange" min="5" max="50" value="20"><span id="sensitivityValue">20</span>
-             </div>
-             <div class="slider-container">
+                <label for="sensitivityRange">Sensitivity (1=Max):</label>
+                <input type="range" id="sensitivityRange" min="1" max="30" value="5">
+                <span id="sensitivityValue">5</span>
+            </div>
+            <div class="slider-container">
                  <label for="minLapTimeRange">Min Lap (s):</label>
                 <input type="range" id="minLapTimeRange" min="0.5" max="5" step="0.1" value="1.0"><span id="minLapTimeValue">1.0</span>
             </div>
         </div>
         
-        <div class="stats-display"> <!-- HTML unchanged -->
+        <div class="stats-display">
             <h2>Live Stats</h2>
             <div class="stats-grid">
                 <div class="stat-item"><span class="label">Current Lap</span><span class="value" id="lapCount">0</span></div>
                 <div class="stat-item"><span class="label">Last Lap</span><span class="value" id="lastLapTime">0.000s</span></div>
                 <div class="stat-item"><span class="label">Best Lap</span><span class="value" id="bestLapTime">N/A</span></div>
-             </div>
+            </div>
              <div class="stat-item" style="margin-top:10px;"><span class="label">Best 3 Consecutive</span><span class="value small" id="best3Consecutive">-</span></div>
-             <div class="stat-item"><span class="label">Total Time</span><span class="value" id="totalTime">0.000s</span></div>
+            <div class="stat-item"><span class="label">Total Time</span><span class="value" id="totalTime">0.000s</span></div>
         </div>
 
-         <div class="lap-list-container"> <!-- HTML unchanged -->
+        <div class="lap-list-container">
             <h2>Lap Times</h2>
             <ul id="lapTimesList"></ul>
         </div>
 
-        <div class="session-controls"> <!-- HTML unchanged -->
+        <div class="session-controls">
             <h2>Session Management</h2>
-            <input type="text" id="sessionName" placeholder="Enter session name (e.g., Track A - Evening)"><button id="saveSessionBtn">Save Laps</button><button id="loadSessionBtn">Load Last Session</button>
+            <input type="text" id="sessionName" placeholder="Enter session name (e.g., Track A - Evening)">
+            <button id="saveSessionBtn">Save Laps</button>
+            <button id="loadSessionBtn">Load Last Session</button>
             <p style="font-size: 0.8em; color: var(--secondary-color);">Sessions are saved in your browser's cookies.</p>
         </div>
     </div>
 
     <script>
-        // --- GET ELEMENTS (Unchanged) ---
         const video = document.getElementById('videoFeed');
         const videoContainer = document.querySelector('.video-container');
         const canvasEl = document.getElementById('detectionCanvas');
         const ctx = canvasEl.getContext('2d', { willReadFrequently: true });
-        const zoneSelectorDiv = document.getElementById('zoneSelectorDiv');
         const zoneInstructionOverlay = document.getElementById('zoneInstructionOverlay');
+        const cameraSelect = document.getElementById('cameraSelect');
+        const offsetTopSlider = document.getElementById('offsetTopSlider');
+        const offsetBottomSlider = document.getElementById('offsetBottomSlider');
+        const offsetLeftSlider = document.getElementById('offsetLeftSlider');
+        const offsetRightSlider = document.getElementById('offsetRightSlider');
+        const offsetTopValue = document.getElementById('offsetTopValue');
+        const offsetBottomValue = document.getElementById('offsetBottomValue');
+        const offsetLeftValue = document.getElementById('offsetLeftValue');
+        const offsetRightValue = document.getElementById('offsetRightValue');
         const startTimerBtn = document.getElementById('startTimerBtn');
         const stopTimerBtn = document.getElementById('stopTimerBtn');
         const resetTimerBtn = document.getElementById('resetTimerBtn');
         const statusMessage = document.getElementById('statusMessage');
-        // ... other getters
         const sensitivityRange = document.getElementById('sensitivityRange');
         const sensitivityValue = document.getElementById('sensitivityValue');
         const minLapTimeRange = document.getElementById('minLapTimeRange');
@@ -261,409 +231,347 @@
         const saveSessionBtn = document.getElementById('saveSessionBtn');
         const loadSessionBtn = document.getElementById('loadSessionBtn');
 
-        // --- STATE VARIABLES (Unchanged) ---
-        let stream;
-        let detectionZone = { x: 0, y: 0, width: 0, height: 0 }; 
-        let isInteractingWithZone = false;
-        let interactionType = null; 
-        let pointerStart = { x: 0, y: 0 }; 
-        let zoneStart = { x: 0, y: 0, width: 0, height: 0 };
+        let currentStream = null; 
+        let currentDeviceId = null; 
+        let videoDevices = []; 
+        let detectionZone = { x: 0, y: 0, width: 0, height: 0 };
+        let zoneOffsets = { top: 25, bottom: 25, left: 25, right: 25 }; 
         let timerRunning = false;
-        let lapStartTime = 0;
-        let currentLap = 0;
-        let lapTimes = [];
-        let lastTriggerTime = 0;
-        let animationFrameId;
-        let prevImageData = null;
-        let totalStartTime = 0;
-        const MOTION_THRESHOLD_BASE = 20;
-        let MIN_LAP_TIME_MS = 1000;
-        const MIN_ZONE_DIMENSION_CANVAS = 30; 
-
-        //-----------------------------------------------------------------
-        // --- CORE LOGIC ---
-        //-----------------------------------------------------------------
+        let lapStartTime = 0, currentLap = 0, lapTimes = [], lastTriggerTime = 0;
+        let animationFrameId, prevImageData = null, totalStartTime = 0;
         
+        const PIXEL_INTENSITY_CHANGE_THRESHOLD = 40; 
+        let CHANGED_PIXELS_PERCENTAGE_TRIGGER = 5; 
+        let MIN_LAP_TIME_MS = 1000;
+        const MIN_ZONE_DIMENSION_CANVAS = 20;
+
         async function init() {
+            await populateCameraList(); 
+            const savedDeviceId = getCookie('racegow_lastCameraId');
+            if (savedDeviceId && videoDevices.find(d => d.deviceId === savedDeviceId)) {
+                currentDeviceId = savedDeviceId;
+            } else if (videoDevices.length > 0) {
+                const frontCamera = videoDevices.find(device => device.label.toLowerCase().includes('front') || device.label.toLowerCase().includes('selfie'));
+                const userFacingCamera = videoDevices.find(device => device.facingMode === 'user'); // More reliable check
+                
+                if (userFacingCamera) {
+                    currentDeviceId = userFacingCamera.deviceId;
+                } else if (frontCamera) { // Fallback to label check
+                    currentDeviceId = frontCamera.deviceId;
+                } else {
+                    currentDeviceId = videoDevices[0].deviceId; 
+                }
+            }
+            cameraSelect.value = currentDeviceId;
+            await startCameraStream(currentDeviceId);
+            MIN_LAP_TIME_MS = parseFloat(minLapTimeRange.value) * 1000;
+            minLapTimeValue.textContent = parseFloat(minLapTimeRange.value).toFixed(1);
+            CHANGED_PIXELS_PERCENTAGE_TRIGGER = parseFloat(sensitivityRange.value);
+            sensitivityValue.textContent = sensitivityRange.value;
+            cameraSelect.addEventListener('change', handleCameraChange);
+        }
+
+        async function populateCameraList() {
             try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-                video.srcObject = stream;
-                // We MUST wait for the video to actually start playing to be sure
-                await video.play(); 
-                 
+                if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+                    handleError("Media device enumeration not supported by this browser.");
+                    return;
+                }
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                videoDevices = devices.filter(device => device.kind === 'videoinput');
+                cameraSelect.innerHTML = ''; 
+                if (videoDevices.length === 0) {
+                    cameraSelect.innerHTML = '<option value="">No cameras found</option>';
+                    handleError("No cameras found on this device.");
+                    return;
+                }
+                videoDevices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Camera ${cameraSelect.options.length + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+            } catch (err) {
+                console.error("Error enumerating devices:", err);
+                handleError("Could not list cameras. Please check permissions.");
+            }
+        }
+        
+        async function startCameraStream(deviceId) {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+            statusMessage.textContent = "Initializing camera...";
+            statusMessage.className = "status-message status-info";
+            const constraints = { video: { deviceId: deviceId ? { exact: deviceId } : undefined } };
+            try {
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = currentStream;
+                await video.play();
+                const settings = currentStream.getVideoTracks()[0].getSettings();
+                if (settings.facingMode === 'user') {
+                    video.style.transform = 'scaleX(-1)';
+                } else {
+                    video.style.transform = 'scaleX(1)';
+                }
+                currentDeviceId = deviceId;
+                setCookie('racegow_lastCameraId', deviceId, 365);
                 video.onloadedmetadata = () => {
-                   // console.log("Video Metadata Loaded.");
                     canvasEl.width = video.videoWidth;
                     canvasEl.height = video.videoHeight;
-                   
-                    loadDetectionZoneFromCookie(); 
-                    if (!isValidZone(detectionZone)) { 
-                         setDefaultZone();
+                    setupZoneOffsetSliders(); 
+                    loadZoneOffsetsFromCookie(); 
+                    if (!areOffsetsValid(zoneOffsets, canvasEl.width, canvasEl.height)) { // Pass canvas dims for validation
+                         setDefaultZoneAndUpdateSliders();
+                    } else {
+                        updateSlidersFromZoneOffsets(); 
+                        calculateDetectionZoneFromOffsets(); 
                     }
-                    
-                    // Use requestAnimationFrame to ensure layout is complete before drawing
                     requestAnimationFrame( () => {
-                        showZoneSelector(); // This now makes visible, positions, and draws
-                        statusMessage.textContent = "Adjust zone, then start timer.";
+                        drawDetectionZoneOutline(); 
+                        zoneInstructionOverlay.style.display = 'block';
+                        zoneInstructionOverlay.style.opacity = 1;
+                        setTimeout(() => { zoneInstructionOverlay.style.opacity = 0; setTimeout(()=>zoneInstructionOverlay.style.display='none', 500)}, 4000);
+                        statusMessage.textContent = "Adjust zone using sliders, then start.";
                         statusMessage.className = "status-message status-info";
                         checkZoneAndEnableStart();
                     });
                 };
-                 video.onerror = (e) => handleError("Video error. Check permissions or try another browser.");
-
+                video.onerror = (e) => handleError("Video error. Check permissions or try another browser.");
             } catch (err) {
-                 // Error handling (same as before, good)
-                console.error("getUserMedia error:", err);
-                 if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-                    handleError("Camera access denied. Please enable it in your browser settings and refresh.");
-                } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError"){
-                    handleError("No camera found. Ensure a camera is connected and enabled.");
-                } else {
-                    handleError(`Camera Error: ${err.name}. Please refresh or check settings.`);
-                }
+                console.error(`Error starting camera ${deviceId}:`, err);
+                handleError(`Could not start camera: ${err.name}. Try another or check permissions.`);
             }
-            setupZoneInteractions();
-             // Initialize sliders
-            MIN_LAP_TIME_MS = parseFloat(minLapTimeRange.value) * 1000;
-            minLapTimeValue.textContent = parseFloat(minLapTimeRange.value).toFixed(1);
-            sensitivityValue.textContent = sensitivityRange.value;
+        }
+        
+        async function handleCameraChange() {
+            const selectedDeviceId = cameraSelect.value;
+            if (selectedDeviceId && selectedDeviceId !== currentDeviceId) {
+                if (timerRunning) { stopTimerBtn.click(); }
+                prevImageData = null; 
+                await startCameraStream(selectedDeviceId);
+            }
         }
 
-        function handleError(message) { /* Unchanged */
-             statusMessage.textContent = message; statusMessage.className = "status-message status-error";
-             startTimerBtn.disabled = true; zoneSelectorDiv.style.display = 'none'; zoneInstructionOverlay.style.display = 'none';
-        }
+        function handleError(message) { statusMessage.textContent = message; statusMessage.className = "status-message status-error"; startTimerBtn.disabled = true; zoneInstructionOverlay.style.display = 'none';}
          
-        function setDefaultZone() {
-             const insetRatio = 0.25; 
-             detectionZone.width = canvasEl.width * (1 - 2 * insetRatio);
-             detectionZone.height = canvasEl.height * (1 - 2 * insetRatio);
-             detectionZone.x = (canvasEl.width - detectionZone.width) / 2;
-             detectionZone.y = (canvasEl.height - detectionZone.height) / 2;
+        function setDefaultZoneAndUpdateSliders() {
+            const defaultOffsetPercentage = 0.15; 
+            zoneOffsets.top = Math.round(canvasEl.height * defaultOffsetPercentage);
+            zoneOffsets.bottom = Math.round(canvasEl.height * defaultOffsetPercentage);
+            zoneOffsets.left = Math.round(canvasEl.width * defaultOffsetPercentage);
+            zoneOffsets.right = Math.round(canvasEl.width * defaultOffsetPercentage);
+            
+            // Crucial: Ensure offsets don't make zone invalid after default setting
+            const maxVerticalOffsetSum = canvasEl.height - MIN_ZONE_DIMENSION_CANVAS;
+            if(zoneOffsets.top + zoneOffsets.bottom > maxVerticalOffsetSum) {
+                zoneOffsets.top = Math.floor(maxVerticalOffsetSum / 2);
+                zoneOffsets.bottom = Math.floor(maxVerticalOffsetSum / 2);
+            }
+            const maxHorizontalOffsetSum = canvasEl.width - MIN_ZONE_DIMENSION_CANVAS;
+            if(zoneOffsets.left + zoneOffsets.right > maxHorizontalOffsetSum) {
+                zoneOffsets.left = Math.floor(maxHorizontalOffsetSum / 2);
+                zoneOffsets.right = Math.floor(maxHorizontalOffsetSum / 2);
+            }
+
+            updateSlidersFromZoneOffsets(); 
+            calculateDetectionZoneFromOffsets();
         }
 
-        function isValidZone(zone) { /* Unchanged */
-             return zone && zone.width >= MIN_ZONE_DIMENSION_CANVAS && zone.height >= MIN_ZONE_DIMENSION_CANVAS &&
-                   zone.x >= 0 && zone.y >= 0 &&
-                   (zone.x + zone.width) <= canvasEl.width + 1 && 
-                   (zone.y + zone.height) <= canvasEl.height + 1;
+        function calculateDetectionZoneFromOffsets() {
+            if (!canvasEl.width || !canvasEl.height) return false; // Canvas not ready
+            detectionZone.x = zoneOffsets.left;
+            detectionZone.y = zoneOffsets.top;
+            detectionZone.width = canvasEl.width - zoneOffsets.left - zoneOffsets.right;
+            detectionZone.height = canvasEl.height - zoneOffsets.top - zoneOffsets.bottom;
+            return isValidZone(detectionZone);
         }
+        
+        function areOffsetsValid(offsets, currentCanvasWidth, currentCanvasHeight) {
+            if (!currentCanvasWidth || !currentCanvasHeight) return false; // Canvas not ready
+            const tempWidth = currentCanvasWidth - offsets.left - offsets.right;
+            const tempHeight = currentCanvasHeight - offsets.top - offsets.bottom;
+            return tempWidth >= MIN_ZONE_DIMENSION_CANVAS && tempHeight >= MIN_ZONE_DIMENSION_CANVAS &&
+                   offsets.left >= 0 && offsets.right >=0 && offsets.top >=0 && offsets.bottom >=0 &&
+                   (offsets.left + offsets.right < currentCanvasWidth) &&
+                   (offsets.top + offsets.bottom < currentCanvasHeight);
+        }
+
+        function isValidZone(zone) { return zone && zone.width >= MIN_ZONE_DIMENSION_CANVAS && zone.height >= MIN_ZONE_DIMENSION_CANVAS && zone.x >= 0 && zone.y >= 0 && (zone.x + zone.width) <= canvasEl.width + 1 && (zone.y + zone.height) <= canvasEl.height + 1; }
          
-        function checkZoneAndEnableStart() { /* Unchanged */
-            startTimerBtn.disabled = !(isValidZone(detectionZone) && !timerRunning);
+        function checkZoneAndEnableStart() { startTimerBtn.disabled = !(calculateDetectionZoneFromOffsets() && !timerRunning); }
+
+        function setupZoneOffsetSliders() {
+            if (!canvasEl.width || !canvasEl.height) return; 
+            [offsetTopSlider, offsetBottomSlider, offsetLeftSlider, offsetRightSlider].forEach(slider => {
+                slider.min = 0; 
+                slider.step = 1; // Ensure integer steps
+                slider.removeEventListener('input', handleZoneOffsetSliderChange); // Remove old before adding new
+                slider.addEventListener('input', handleZoneOffsetSliderChange);
+            });
+            updateOffsetSliderMaxValues(); // Set initial max values
         }
 
-        function showZoneSelector() {
-           // console.log("Showing Zone Selector");
-            updateZoneSelectorFromDetectionZone(); // Position the DIV based on data
-            drawDetectionZoneOutline(); // Draw on Canvas
-            zoneSelectorDiv.style.display = 'block'; // Make it visible
-            
-            zoneInstructionOverlay.style.display = 'block';
-            zoneInstructionOverlay.style.opacity = 1;
-            setTimeout(() => { zoneInstructionOverlay.style.opacity = 0; setTimeout(()=>zoneInstructionOverlay.style.display='none', 500)}, 4000);
+        function updateOffsetSliderMaxValues() {
+            if (!canvasEl.width || !canvasEl.height) return;
+            offsetTopSlider.max = Math.max(0, canvasEl.height - zoneOffsets.bottom - MIN_ZONE_DIMENSION_CANVAS);
+            offsetBottomSlider.max = Math.max(0, canvasEl.height - zoneOffsets.top - MIN_ZONE_DIMENSION_CANVAS);
+            offsetLeftSlider.max = Math.max(0, canvasEl.width - zoneOffsets.right - MIN_ZONE_DIMENSION_CANVAS);
+            offsetRightSlider.max = Math.max(0, canvasEl.width - zoneOffsets.left - MIN_ZONE_DIMENSION_CANVAS);
         }
 
-        // --- Zone Selector DIV Interaction ---
-        function setupZoneInteractions() {
-             // Attach to the container, NOT the div, initially,
-             // Then check if the target is the zone div or a handle.
-             // This can sometimes be more robust. However, attaching
-             // to the div directly and using document for move/up is standard.
-             // Ensuring passive:false is the key.
-            zoneSelectorDiv.addEventListener('mousedown', onPointerDownZone);
-            zoneSelectorDiv.addEventListener('touchstart', onPointerDownZone, { passive: false }); // *** Explicitly NOT passive
+        function handleZoneOffsetSliderChange() {
+            zoneOffsets.top = parseInt(offsetTopSlider.value);
+            zoneOffsets.bottom = parseInt(offsetBottomSlider.value);
+            zoneOffsets.left = parseInt(offsetLeftSlider.value);
+            zoneOffsets.right = parseInt(offsetRightSlider.value);
+            updateOffsetSliderMaxValues(); // Update max values for other sliders
             
-            document.addEventListener('mousemove', onPointerMoveZone);
-            document.addEventListener('touchmove', onPointerMoveZone, { passive: false }); // *** Explicitly NOT passive
+            // Re-check and clamp values if they exceed new maxes
+            zoneOffsets.top = Math.min(zoneOffsets.top, parseInt(offsetTopSlider.max));
+            zoneOffsets.bottom = Math.min(zoneOffsets.bottom, parseInt(offsetBottomSlider.max));
+            zoneOffsets.left = Math.min(zoneOffsets.left, parseInt(offsetLeftSlider.max));
+            zoneOffsets.right = Math.min(zoneOffsets.right, parseInt(offsetRightSlider.max));
 
-            document.addEventListener('mouseup', onPointerUpZone);
-            document.addEventListener('touchend', onPointerUpZone);
-            document.addEventListener('touchcancel', onPointerUpZone); // Important
-        }
-
-        function onPointerDownZone(event) {
-            if (timerRunning) return;
-           
-            // IMPORTANT: Prevent default ONLY if we are actually interacting with the zone/handles
-            // to allow scrolling on the page if the touch starts elsewhere.
-             const target = event.target;
-             if (target.closest("#zoneSelectorDiv")) {
-                // Only call preventDefault IF the touch actually starts on our interactive element
-                 if (event.type === 'touchstart') event.preventDefault(); 
-             } else {
-                 return; // Don't start interaction if click/touch wasn't on the selector
-             }
-
-            isInteractingWithZone = true;
-            document.body.classList.add('zone-interaction-active'); // Helps disable body scroll
-
-            zoneInstructionOverlay.style.display = 'none'; 
-
-            pointerStart.x = (event.type === 'touchstart') ? event.touches[0].clientX : event.clientX;
-            pointerStart.y = (event.type === 'touchstart') ? event.touches[0].clientY : event.clientY;
-            zoneStart = { ...detectionZone }; 
-
-            if (target.classList.contains('resize-handle')) {
-                interactionType = target.dataset.handle;
-            } else {
-                interactionType = 'move';
-            }
-             // console.log("Pointer Down:", interactionType);
-        }
-
-        function onPointerMoveZone(event) {
-            if (!isInteractingWithZone || timerRunning) return;
-            
-             // We already set passive:false on the listener,
-             // so preventDefault() should work here to stop scroll during drag.
-            event.preventDefault(); 
-            
-            const currentX = (event.type === 'touchmove') ? event.touches[0].clientX : event.clientX;
-            const currentY = (event.type === 'touchmove') ? event.touches[0].clientY : event.clientY;
-
-            let dxViewport = currentX - pointerStart.x;
-            let dyViewport = currentY - pointerStart.y;
-
-            const videoRect = videoContainer.getBoundingClientRect();
-            // FIX: Ensure we don't divide by zero if container isn't rendered
-            const scaleW = (videoRect.width > 0) ? (canvasEl.width / videoRect.width) : 0;
-            const scaleH = (videoRect.height > 0) ? (canvasEl.height / videoRect.height) : 0;
-           
-            const dxCanvas = dxViewport * scaleW;
-            const dyCanvas = dyViewport * scaleH;
-            
-            let newX = zoneStart.x; let newY = zoneStart.y;
-            let newWidth = zoneStart.width; let newHeight = zoneStart.height;
-
-             // Resize/Move logic (Unchanged - was logically sound)
-            if (interactionType === 'move') {
-                newX += dxCanvas; newY += dyCanvas;
-            } else { 
-                if (interactionType.includes('w')) { newX += dxCanvas; newWidth -= dxCanvas; }
-                if (interactionType.includes('e')) { newWidth += dxCanvas; }
-                if (interactionType.includes('n')) { newY += dyCanvas; newHeight -= dyCanvas; }
-                if (interactionType.includes('s')) { newHeight += dyCanvas; }
-            }
-            if (newWidth < MIN_ZONE_DIMENSION_CANVAS) {
-                if (interactionType.includes('w')) newX = zoneStart.x + zoneStart.width - MIN_ZONE_DIMENSION_CANVAS;
-                newWidth = MIN_ZONE_DIMENSION_CANVAS;
-            }
-            if (newHeight < MIN_ZONE_DIMENSION_CANVAS) {
-                 if (interactionType.includes('n')) newY = zoneStart.y + zoneStart.height - MIN_ZONE_DIMENSION_CANVAS;
-                newHeight = MIN_ZONE_DIMENSION_CANVAS;
-            }
-            newX = Math.max(0, Math.min(newX, canvasEl.width - newWidth));
-            newY = Math.max(0, Math.min(newY, canvasEl.height - newHeight));
-            newWidth = Math.min(newWidth, canvasEl.width - newX);
-            newHeight = Math.min(newHeight, canvasEl.height - newY);
-
-            detectionZone.x = Math.round(newX); detectionZone.y = Math.round(newY);
-            detectionZone.width = Math.round(newWidth); detectionZone.height = Math.round(newHeight);
-
-            updateZoneSelectorFromDetectionZone();
+            updateSlidersFromZoneOffsets(false); 
+            calculateDetectionZoneFromOffsets();
             drawDetectionZoneOutline();
+            checkZoneAndEnableStart();
+            if (!timerRunning) saveZoneOffsetsToCookie();
+        }
+
+        function updateSlidersFromZoneOffsets(triggerChangeEvent = true) {
+            offsetTopSlider.value = zoneOffsets.top;
+            offsetBottomSlider.value = zoneOffsets.bottom;
+            offsetLeftSlider.value = zoneOffsets.left;
+            offsetRightSlider.value = zoneOffsets.right;
+            offsetTopValue.textContent = zoneOffsets.top;
+            offsetBottomValue.textContent = zoneOffsets.bottom;
+            offsetLeftValue.textContent = zoneOffsets.left;
+            offsetRightValue.textContent = zoneOffsets.right;
+            updateOffsetSliderMaxValues(); // Ensure max values are correct for the current state
+            // calculateDetectionZoneFromOffsets(); // Called by checkZoneAndEnableStart
+            drawDetectionZoneOutline(); 
             checkZoneAndEnableStart();
         }
 
-        function onPointerUpZone(event) {
-            if (!isInteractingWithZone) return;
-            isInteractingWithZone = false;
-             document.body.classList.remove('zone-interaction-active');
-            interactionType = null;
-            saveDetectionZoneToCookie();
-            checkZoneAndEnableStart(); 
-           // console.log("Pointer Up. Zone:", detectionZone);
-        }
-
-        function updateZoneSelectorFromDetectionZone() { /* Unchanged */
-            if (!videoContainer.offsetWidth) return; 
-            const videoRect = videoContainer.getBoundingClientRect();
-            const displayX = (detectionZone.x / canvasEl.width) * videoRect.width;
-            const displayY = (detectionZone.y / canvasEl.height) * videoRect.height;
-            const displayWidth = (detectionZone.width / canvasEl.width) * videoRect.width;
-            const displayHeight = (detectionZone.height / canvasEl.height) * videoRect.height;
-            zoneSelectorDiv.style.left = `${displayX}px`; zoneSelectorDiv.style.top = `${displayY}px`;
-            zoneSelectorDiv.style.width = `${displayWidth}px`; zoneSelectorDiv.style.height = `${displayHeight}px`;
-        }
-
-        function drawDetectionZoneOutline() { /* Unchanged */
+        function drawDetectionZoneOutline() {
              if (canvasEl.style.width !== videoContainer.offsetWidth + 'px' || canvasEl.style.height !== videoContainer.offsetHeight + 'px') {
                 canvasEl.style.width = videoContainer.offsetWidth + 'px';
                 canvasEl.style.height = videoContainer.offsetHeight + 'px';
             }
             ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
-            if (isValidZone(detectionZone)) {
+            if (calculateDetectionZoneFromOffsets()) { 
                 ctx.strokeStyle = 'rgba(40, 167, 69, 0.9)'; 
-                ctx.lineWidth = Math.max(2, 4 * (videoContainer.offsetWidth / canvasEl.width));
+                ctx.lineWidth = Math.max(2, 3 * (videoContainer.offsetWidth / canvasEl.width));
                 ctx.strokeRect(detectionZone.x, detectionZone.y, detectionZone.width, detectionZone.height);
             }
         }
 
-         // Resize Observer (Unchanged)
         const resizeObserver = new ResizeObserver(entries => {
             for (let entry of entries) {
                 if (entry.target === videoContainer && video.readyState >= video.HAVE_METADATA) {
-                   requestAnimationFrame(() => { // Defer to ensure layout is done
-                       updateZoneSelectorFromDetectionZone();
-                       drawDetectionZoneOutline();
+                   requestAnimationFrame(() => { 
+                       canvasEl.width = video.videoWidth; // Re-set internal canvas size
+                       canvasEl.height = video.videoHeight;
+                       setupZoneOffsetSliders(); 
+                       updateSlidersFromZoneOffsets(); 
+                       drawDetectionZoneOutline(); 
                    });
                 }
             }
         });
          if(videoContainer) resizeObserver.observe(videoContainer);
 
-        // --- TIMER AND LAP LOGIC ---
-        // (Motion Detection, Start, Stop, Reset, Lap updates, Cookies, etc.)
-        // --- NO CHANGES NEEDED HERE FROM PREVIOUS VERSION ---
         function detectMotion() {
-            if (!timerRunning || !detectionZone || !video.videoWidth || video.paused || video.ended) {
-                if(timerRunning) animationFrameId = requestAnimationFrame(detectMotion);
-                return;
+            if (!timerRunning || !detectionZone || !video.videoWidth || video.paused || video.ended) { if(timerRunning) animationFrameId = requestAnimationFrame(detectMotion); return; }
+            if (!isValidZone(detectionZone)) return; // Don't process if zone is invalid
+            const zoneWidth = Math.max(1, Math.floor(detectionZone.width)); const zoneHeight = Math.max(1, Math.floor(detectionZone.height));
+            const offscreenCanvas = document.createElement('canvas'); const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
+            offscreenCanvas.width = zoneWidth; offscreenCanvas.height = zoneHeight;
+            let sourceX = detectionZone.x; // Default for non-mirrored
+            if (video.style.transform === 'scaleX(-1)') { // If mirrored
+                sourceX = video.videoWidth - detectionZone.x - detectionZone.width;
             }
-            const zoneWidthForProcessing = Math.max(1, Math.floor(detectionZone.width));
-            const zoneHeightForProcessing = Math.max(1, Math.floor(detectionZone.height));
-            const offscreenCanvas = document.createElement('canvas');
-            const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
-            offscreenCanvas.width = zoneWidthForProcessing;
-            offscreenCanvas.height = zoneHeightForProcessing;
-            const sourceX = video.videoWidth - detectionZone.x - detectionZone.width;
-            offscreenCtx.drawImage(video, sourceX, detectionZone.y, detectionZone.width, detectionZone.height, 0, 0, zoneWidthForProcessing, zoneHeightForProcessing);
-            const currentFrameData = offscreenCtx.getImageData(0, 0, zoneWidthForProcessing, zoneHeightForProcessing);
+            offscreenCtx.drawImage(video, sourceX, detectionZone.y, detectionZone.width, detectionZone.height, 0, 0, zoneWidth, zoneHeight);
+            const currentFrameData = offscreenCtx.getImageData(0, 0, zoneWidth, zoneHeight); const currentData = currentFrameData.data;
             if (prevImageData) {
-                let diff = 0;
-                for (let i = 0; i < currentFrameData.data.length; i += 4) {
-                    diff += Math.abs(currentFrameData.data[i] - prevImageData.data[i]);
-                    diff += Math.abs(currentFrameData.data[i+1] - prevImageData.data[i+1]);
-                    diff += Math.abs(currentFrameData.data[i+2] - prevImageData.data[i+2]);
+                const prevData = prevImageData.data; let changedPixelCount = 0; const totalPixelsInZone = zoneWidth * zoneHeight;
+                for (let i = 0; i < currentData.length; i += 4) {
+                    const diffR = Math.abs(currentData[i] - prevData[i]); const diffG = Math.abs(currentData[i+1] - prevData[i+1]); const diffB = Math.abs(currentData[i+2] - prevData[i+2]);
+                    if (diffR > PIXEL_INTENSITY_CHANGE_THRESHOLD || diffG > PIXEL_INTENSITY_CHANGE_THRESHOLD || diffB > PIXEL_INTENSITY_CHANGE_THRESHOLD) { changedPixelCount++; }
                 }
-                const avgDiff = diff / (currentFrameData.data.length / 4);
-                const motionThreshold = MOTION_THRESHOLD_BASE * ( (55 - parseInt(sensitivityRange.value)) / 30 );
-                if (avgDiff > motionThreshold) {
-                    triggerLap();
-                    ctx.fillStyle = 'rgba(255, 193, 7, 0.5)'; 
+                const percentageChanged = (totalPixelsInZone > 0) ? (changedPixelCount / totalPixelsInZone) * 100 : 0;
+                if (percentageChanged >= CHANGED_PIXELS_PERCENTAGE_TRIGGER) {
+                    triggerLap(); ctx.fillStyle = 'rgba(255, 193, 7, 0.5)'; 
                     ctx.fillRect(detectionZone.x, detectionZone.y, detectionZone.width, detectionZone.height);
                     setTimeout(() => drawDetectionZoneOutline(), 150);
                 }
             }
-            prevImageData = currentFrameData;
+            prevImageData = currentFrameData; 
             if (timerRunning) animationFrameId = requestAnimationFrame(detectMotion);
         }
+        
         startTimerBtn.addEventListener('click', () => {
-            if (!isValidZone(detectionZone)) { statusMessage.textContent = "Please set a valid detection zone first!"; statusMessage.className = "status-message status-warning"; return; }
+            if (!calculateDetectionZoneFromOffsets()) { statusMessage.textContent = "Please set a valid detection zone first!"; statusMessage.className = "status-message status-warning"; return; }
             if (timerRunning) return;
             timerRunning = true;
             startTimerBtn.disabled = true; stopTimerBtn.disabled = false; resetTimerBtn.disabled = true;
             sensitivityRange.disabled = true; minLapTimeRange.disabled = true;
-            zoneSelectorDiv.style.display = 'none'; 
-            lapStartTime = performance.now();
-            if (currentLap === 0) totalStartTime = lapStartTime;
+            [offsetTopSlider, offsetBottomSlider, offsetLeftSlider, offsetRightSlider].forEach(s => s.disabled = true);
+            cameraSelect.disabled = true; // Disable camera select when timer runs
+            lapStartTime = performance.now(); if (currentLap === 0) totalStartTime = lapStartTime;
             lastTriggerTime = performance.now() - MIN_LAP_TIME_MS;
             statusMessage.textContent = "Timer running! Listening for drone..."; statusMessage.className = "status-message status-success";
-            prevImageData = null;
-            animationFrameId = requestAnimationFrame(detectMotion);
-            updateTotalTimeDisplay();
+            prevImageData = null; animationFrameId = requestAnimationFrame(detectMotion); updateTotalTimeDisplay();
         });
+
         stopTimerBtn.addEventListener('click', () => {
             if (!timerRunning) return;
-            timerRunning = false;
-            cancelAnimationFrame(animationFrameId);
+            timerRunning = false; cancelAnimationFrame(animationFrameId);
             stopTimerBtn.disabled = true; resetTimerBtn.disabled = false;
             sensitivityRange.disabled = false; minLapTimeRange.disabled = false;
-            showZoneSelector(); // Re-show and position
+            [offsetTopSlider, offsetBottomSlider, offsetLeftSlider, offsetRightSlider].forEach(s => s.disabled = false);
+            cameraSelect.disabled = false; // Enable camera select
             checkZoneAndEnableStart();
-            prevImageData = null;
-            statusMessage.textContent = "Timer stopped. Adjust zone or start again."; statusMessage.className = "status-message status-info";
+            prevImageData = null; statusMessage.textContent = "Timer stopped. Adjust zone or start again."; statusMessage.className = "status-message status-info";
         });
-         resetTimerBtn.addEventListener('click', () => {
+        
+        resetTimerBtn.addEventListener('click', () => {
             if (timerRunning) stopTimerBtn.click(); 
-            currentLap = 0; lapTimes = []; lapStartTime = 0; totalStartTime = 0; prevImageData = null;
-            updateLapDisplay(); 
+            currentLap = 0; lapTimes = []; 
+            lapStartTime = 0; totalStartTime = 0; prevImageData = null; updateLapDisplay(); 
             lapTimesList.innerHTML = ''; bestLapTimeDisplay.textContent = "N/A"; best3ConsecutiveDisplay.textContent = "-";
             totalTimeDisplay.textContent = "0.000s"; lapCountDisplay.textContent = "0"; lastLapTimeDisplay.textContent = "0.000s";
             sessionNameInput.value = '';
-            setDefaultZone(); // Reset to default position/size
-            showZoneSelector(); // Show, position, draw
-            saveDetectionZoneToCookie(); 
+            setDefaultZoneAndUpdateSliders(); 
+            saveZoneOffsetsToCookie(); 
             statusMessage.textContent = "Timer reset. Adjust zone and start."; statusMessage.className = "status-message status-info";
+            zoneInstructionOverlay.style.display = 'block'; zoneInstructionOverlay.style.opacity = 1;
+            setTimeout(() => { zoneInstructionOverlay.style.opacity = 0; setTimeout(()=>zoneInstructionOverlay.style.display='none', 500)}, 4000);
             checkZoneAndEnableStart();
+            [offsetTopSlider, offsetBottomSlider, offsetLeftSlider, offsetRightSlider].forEach(s => s.disabled = false); 
+            cameraSelect.disabled = false;
         });
-       function triggerLap() { /* Unchanged */
-            const now = performance.now(); if (now - lastTriggerTime < MIN_LAP_TIME_MS) { return; }
-            lastTriggerTime = now;
-            if (currentLap > 0 || lapTimes.length > 0) { const lapTime = (now - lapStartTime) / 1000; lapTimes.push(lapTime);
-            } else if (currentLap === 0 && lapTimes.length === 0) { totalStartTime = now; }
-            currentLap++; lapStartTime = now; updateLapDisplay(); speakLapTime();
-        }
-        function updateTotalTimeDisplay() { /* Unchanged */
-            if (timerRunning) { const elapsed = (performance.now() - totalStartTime) / 1000; totalTimeDisplay.textContent = elapsed.toFixed(3) + 's'; if(timerRunning) requestAnimationFrame(updateTotalTimeDisplay);
-            } else if (lapTimes.length > 0) { const sumOfLaps = lapTimes.reduce((sum, t) => sum + t, 0); totalTimeDisplay.textContent = sumOfLaps.toFixed(3) + 's';
-            } else { totalTimeDisplay.textContent = "0.000s"; }
-        }
-        function updateLapDisplay() { /* Unchanged */
-            lapCountDisplay.textContent = currentLap;
-            if (lapTimes.length > 0) { const lastLap = lapTimes[lapTimes.length - 1]; lastLapTimeDisplay.textContent = lastLap.toFixed(3) + 's';
-                const li = document.createElement('li'); li.textContent = `Lap ${lapTimes.length}: ${lastLap.toFixed(3)}s`; lapTimesList.prepend(li);
-                updateBestLap(); updateBest3Consecutive();
-            } else { lastLapTimeDisplay.textContent = "0.000s"; }
-            updateTotalTimeDisplay();
-        }
-       function updateBestLap() { /* Unchanged */
-            if (lapTimes.length === 0) { bestLapTimeDisplay.textContent = "N/A"; return; }
-            const best = Math.min(...lapTimes); bestLapTimeDisplay.textContent = best.toFixed(3) + 's';
-            const lis = lapTimesList.getElementsByTagName('li');
-            for (let li of lis) { li.classList.remove('best-lap'); if (Math.abs(parseFloat(li.textContent.split(': ')[1]) - best) < 0.0001) { li.classList.add('best-lap'); } }
-        }
-        function updateBest3Consecutive() { /* Unchanged */
-            if (lapTimes.length < 3) { best3ConsecutiveDisplay.textContent = "-"; return; }
-            let minSum = Infinity; let bestStartIndex = -1;
-            for (let i = 0; i <= lapTimes.length - 3; i++) { const currentSum = lapTimes[i] + lapTimes[i+1] + lapTimes[i+2]; if (currentSum < minSum) { minSum = currentSum; bestStartIndex = i; } }
-            if (bestStartIndex !== -1) { const laps = lapTimes.slice(bestStartIndex, bestStartIndex + 3); best3ConsecutiveDisplay.textContent = `Laps ${bestStartIndex + 1}-${bestStartIndex + 3}: ${minSum.toFixed(3)}s (${laps.map(t => t.toFixed(2)).join(', ')})`;
-            } else { best3ConsecutiveDisplay.textContent = "-"; }
-        }
-       function speakLapTime() { /* Unchanged */
-            if (lapTimes.length > 0 && 'speechSynthesis' in window) {
-                const lastLap = lapTimes[lapTimes.length - 1]; const timeStr = lastLap.toFixed(2).replace('.', ' point ');
-                const utterance = new SpeechSynthesisUtterance(`Lap ${lapTimes.length}. ${timeStr} seconds.`);
-                speechSynthesis.speak(utterance);
-            }
-        }
-        sensitivityRange.addEventListener('input', (e) => sensitivityValue.textContent = e.target.value);
+
+        function triggerLap() { const now = performance.now(); if (now - lastTriggerTime < MIN_LAP_TIME_MS) { return; } lastTriggerTime = now; if (currentLap > 0 || lapTimes.length > 0) { const lapTime = (now - lapStartTime) / 1000; lapTimes.push(lapTime); } else if (currentLap === 0 && lapTimes.length === 0) { totalStartTime = now; } currentLap++; lapStartTime = now; updateLapDisplay(); speakLapTime(); }
+        function updateTotalTimeDisplay() { if (timerRunning) { const elapsed = (performance.now() - totalStartTime) / 1000; totalTimeDisplay.textContent = elapsed.toFixed(3) + 's'; if(timerRunning) requestAnimationFrame(updateTotalTimeDisplay); } else if (lapTimes.length > 0) { const sumOfLaps = lapTimes.reduce((sum, t) => sum + t, 0); totalTimeDisplay.textContent = sumOfLaps.toFixed(3) + 's'; } else { totalTimeDisplay.textContent = "0.000s"; } }
+        function updateLapDisplay() { lapCountDisplay.textContent = currentLap; if (lapTimes.length > 0) { const lastLap = lapTimes[lapTimes.length - 1]; lastLapTimeDisplay.textContent = lastLap.toFixed(3) + 's'; const li = document.createElement('li'); li.textContent = `Lap ${lapTimes.length}: ${lastLap.toFixed(3)}s`; lapTimesList.prepend(li); updateBestLap(); updateBest3Consecutive(); } else { lastLapTimeDisplay.textContent = "0.000s"; } updateTotalTimeDisplay(); }
+        function updateBestLap() { if (lapTimes.length === 0) { bestLapTimeDisplay.textContent = "N/A"; return; } const best = Math.min(...lapTimes); bestLapTimeDisplay.textContent = best.toFixed(3) + 's'; const lis = lapTimesList.getElementsByTagName('li'); for (let li of lis) { li.classList.remove('best-lap'); if (Math.abs(parseFloat(li.textContent.split(': ')[1]) - best) < 0.0001) { li.classList.add('best-lap'); } } }
+        function updateBest3Consecutive() { if (lapTimes.length < 3) { best3ConsecutiveDisplay.textContent = "-"; return; } let minSum = Infinity; let bestStartIndex = -1; for (let i = 0; i <= lapTimes.length - 3; i++) { const currentSum = lapTimes[i] + lapTimes[i+1] + lapTimes[i+2]; if (currentSum < minSum) { minSum = currentSum; bestStartIndex = i; } } if (bestStartIndex !== -1) { const laps = lapTimes.slice(bestStartIndex, bestStartIndex + 3); best3ConsecutiveDisplay.textContent = `Laps ${bestStartIndex + 1}-${bestStartIndex + 3}: ${minSum.toFixed(3)}s (${laps.map(t => t.toFixed(2)).join(', ')})`; } else { best3ConsecutiveDisplay.textContent = "-"; } }
+        function speakLapTime() { if (lapTimes.length > 0 && 'speechSynthesis' in window) { const lastLap = lapTimes[lapTimes.length - 1]; const timeStr = lastLap.toFixed(2).replace('.', ' point '); const utterance = new SpeechSynthesisUtterance(`Lap ${lapTimes.length}. ${timeStr} seconds.`); speechSynthesis.speak(utterance); } }
+        
+        sensitivityRange.addEventListener('input', (e) => { CHANGED_PIXELS_PERCENTAGE_TRIGGER = parseFloat(e.target.value); sensitivityValue.textContent = e.target.value; });
         minLapTimeRange.addEventListener('input', (e) => { minLapTimeValue.textContent = parseFloat(e.target.value).toFixed(1); MIN_LAP_TIME_MS = parseFloat(e.target.value) * 1000; });
-       function saveDetectionZoneToCookie() { /* Unchanged */
-            if (detectionZone && isValidZone(detectionZone)) { document.cookie = `racegow_detectionZone=${JSON.stringify(detectionZone)};max-age=31536000;path=/;samesite=Lax`; }
-        }
-       function loadDetectionZoneFromCookie() { /* Unchanged */
-            const cookies = document.cookie.split(';');
-            for (let cookie of cookies) { const [name, value] = cookie.trim().split('='); if (name === 'racegow_detectionZone') {
-                    try { const parsedZone = JSON.parse(value);
-                        if (isValidZone(parsedZone)) { detectionZone = parsedZone; }
-                    } catch (e) { console.error("Error parsing zone cookie:", e); }
-                    return;  } }
-        }
-       saveSessionBtn.addEventListener('click', () => { /* Unchanged */ 
-            const sessionName = sessionNameInput.value.trim() || `Session ${new Date().toLocaleString()}`; if (lapTimes.length === 0) { alert("No laps to save!"); return; }
-            const sessionData = { name: sessionName, laps: lapTimes, date: new Date().toISOString() };
-            document.cookie = `racegow_lastSession=${JSON.stringify(sessionData)};max-age=31536000;path=/;samesite=Lax`; alert(`Session "${sessionName}" saved!`);
-        });
-       loadSessionBtn.addEventListener('click', () => { /* Unchanged */
-             const cookies = document.cookie.split(';');
-            for (let cookie of cookies) { const [name, value] = cookie.trim().split('='); if (name === 'racegow_lastSession') {
-                    try { const sessionData = JSON.parse(value); if (sessionData && sessionData.laps) {
-                            if (timerRunning) stopTimerBtn.click();
-                            lapTimes = sessionData.laps; sessionNameInput.value = sessionData.name || "Loaded Session"; currentLap = lapTimes.length;
-                            lapTimesList.innerHTML = ''; lapTimes.forEach((lapTime, index) => { const li = document.createElement('li'); li.textContent = `Lap ${index + 1}: ${lapTime.toFixed(3)}s`; lapTimesList.prepend(li); });
-                            const items = Array.from(lapTimesList.childNodes); items.reverse().forEach(item => lapTimesList.appendChild(item));
-                            updateLapDisplay(); statusMessage.textContent = `Loaded session: "${sessionNameInput.value}"`; statusMessage.className = "status-message status-info"; alert(`Session "${sessionNameInput.value}" loaded.`);
-                        } else { alert("No valid session data found in cookie."); }
-                    } catch (e) { console.error("Error parsing session cookie:", e); alert("Error loading session from cookie."); }
-                    return; } }
-             alert("No saved session found.");
-        });
+        
+        function setCookie(name, value, days) { let expires = ""; if (days) { const date = new Date(); date.setTime(date.getTime() + (days*24*60*60*1000)); expires = "; expires=" + date.toUTCString(); } document.cookie = name + "=" + (value || "")  + expires + "; path=/; samesite=Lax"; }
+        function getCookie(name) { const nameEQ = name + "="; const ca = document.cookie.split(';'); for(let i=0;i < ca.length;i++) { let c = ca[i]; while (c.charAt(0)==' ') c = c.substring(1,c.length); if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length); } return null; }
+        function saveZoneOffsetsToCookie() { if (zoneOffsets) { setCookie('racegow_zoneOffsets', JSON.stringify(zoneOffsets), 365); } }
+        function loadZoneOffsetsFromCookie() { const savedOffsets = getCookie('racegow_zoneOffsets'); if (savedOffsets) { try { const parsedOffsets = JSON.parse(savedOffsets); if (typeof parsedOffsets.top === 'number' && typeof parsedOffsets.bottom === 'number' && typeof parsedOffsets.left === 'number' && typeof parsedOffsets.right === 'number') { zoneOffsets = parsedOffsets; } } catch (e) { console.error("Error parsing zone offsets cookie:", e); } } }
+        saveSessionBtn.addEventListener('click', () => { const sessionName = sessionNameInput.value.trim() || `Session ${new Date().toLocaleString()}`; if (lapTimes.length === 0) { alert("No laps to save!"); return; } const sessionData = { name: sessionName, laps: lapTimes, date: new Date().toISOString() }; setCookie('racegow_lastSession', JSON.stringify(sessionData), 365); alert(`Session "${sessionName}" saved!`); });
+        loadSessionBtn.addEventListener('click', () => { const savedSession = getCookie('racegow_lastSession'); if (savedSession) { try { const sessionData = JSON.parse(savedSession); if (sessionData && sessionData.laps) { if (timerRunning) stopTimerBtn.click(); lapTimes = sessionData.laps; sessionNameInput.value = sessionData.name || "Loaded Session"; currentLap = lapTimes.length; lapTimesList.innerHTML = ''; lapTimes.forEach((lapTime, index) => { const li = document.createElement('li'); li.textContent = `Lap ${index + 1}: ${lapTime.toFixed(3)}s`; lapTimesList.prepend(li); }); const items = Array.from(lapTimesList.childNodes); items.reverse().forEach(item => lapTimesList.appendChild(item)); updateLapDisplay(); statusMessage.textContent = `Loaded session: "${sessionNameInput.value}"`; statusMessage.className = "status-message status-info"; alert(`Session "${sessionNameInput.value}" loaded.`); } else { alert("No valid session data found in cookie."); } } catch (e) { console.error("Error parsing session cookie:", e); alert("Error loading session from cookie."); } } else { alert("No saved session found."); } });
 
-        // --- START ---
         init();
-
     </script>
 </body>
 </html>
