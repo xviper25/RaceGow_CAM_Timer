@@ -15,6 +15,9 @@
             --warning-color: #ffc107;
             --danger-color: #dc3545;
             --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --line-thickness: 10px; /* Thickness of draggable lines */
+            --line-color-idle: rgba(220, 53, 69, 0.6); /* Bootstrap danger, semi-transparent */
+            --line-color-active: rgba(220, 53, 69, 0.9); 
         }
 
         body {
@@ -26,12 +29,12 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            overscroll-behavior: none; /* Prevents pull-to-refresh on mobile */
+            overscroll-behavior: none; 
         }
 
         .container {
             width: 100%;
-            max-width: 600px; /* Max width for larger screens, full width on mobile */
+            max-width: 600px;
             padding: 15px;
             box-sizing: border-box;
         }
@@ -49,7 +52,7 @@
         }
         header h1 {
             margin: 0;
-            font-size: 1.2em; /* Adjusted for better mobile view */
+            font-size: 1.2em;
         }
 
         .video-container {
@@ -57,7 +60,7 @@
             width: 100%;
             background-color: #000;
             border-radius: 8px;
-            overflow: hidden;
+            overflow: hidden; /* Important for line positioning */
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
 
@@ -73,7 +76,26 @@
             left: 0;
             width: 100%;
             height: 100%;
+            pointer-events: none; /* Canvas is for display only now */
         }
+
+        .boundary-line {
+            position: absolute;
+            background-color: var(--line-color-idle);
+            z-index: 5;
+            touch-action: none; /* Crucial for preventing scroll on drag */
+            box-sizing: border-box;
+            /* border: 1px dashed rgba(255,255,255,0.3); Add border for better visibility if needed */
+        }
+        #lineTop, #lineBottom {
+            height: var(--line-thickness);
+            cursor: ns-resize;
+        }
+        #lineLeft, #lineRight {
+            width: var(--line-thickness);
+            cursor: ew-resize;
+        }
+
 
         .controls, .session-controls, .stats-display, .lap-list-container {
             background-color: var(--surface-color);
@@ -172,6 +194,8 @@
         }
         .status-info { background-color: #e7f3fe; color: #0c5460; border: 1px solid #b8daff;}
         .status-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;}
+        .status-warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+
 
         .flex-controls {
             display: flex;
@@ -210,7 +234,6 @@
             font-size: 1em;
         }
 
-        /* For drawing instruction */
         #instructionOverlay {
             position: absolute;
             top: 0;
@@ -225,7 +248,7 @@
             text-align: center;
             font-size: 1.2em;
             z-index: 10;
-            pointer-events: none; /* Allow clicks to pass through to canvas for drawing */
+            pointer-events: none;
         }
     </style>
 </head>
@@ -240,7 +263,12 @@
         <div class="video-container">
             <video id="videoFeed" playsinline autoplay muted></video>
             <canvas id="detectionCanvas"></canvas>
-            <div id="instructionOverlay" style="display: none;">Draw detection zone on video</div>
+            <!-- Draggable Boundary Lines -->
+            <div class="boundary-line" id="lineTop"></div>
+            <div class="boundary-line" id="lineBottom"></div>
+            <div class="boundary-line" id="lineLeft"></div>
+            <div class="boundary-line" id="lineRight"></div>
+            <div id="instructionOverlay" style="display: none;">Adjust boundary lines to set detection zone.</div>
         </div>
 
         <div class="controls">
@@ -290,9 +318,7 @@
 
         <div class="lap-list-container">
             <h2>Lap Times</h2>
-            <ul id="lapTimesList">
-                <!-- Lap times will be added here -->
-            </ul>
+            <ul id="lapTimesList"></ul>
         </div>
 
         <div class="session-controls">
@@ -300,15 +326,22 @@
             <input type="text" id="sessionName" placeholder="Enter session name (e.g., Track A - Evening)">
             <button id="saveSessionBtn">Save Laps</button>
             <button id="loadSessionBtn">Load Last Session</button>
-             <p style="font-size: 0.8em; color: var(--secondary-color);">Sessions are saved in your browser's cookies.</p>
+            <p style="font-size: 0.8em; color: var(--secondary-color);">Sessions are saved in your browser's cookies.</p>
         </div>
     </div>
 
     <script>
         const video = document.getElementById('videoFeed');
+        const videoContainer = document.querySelector('.video-container');
         const canvas = document.getElementById('detectionCanvas');
-        const ctx = canvas.getContext('2d', { willReadFrequently: true }); // willReadFrequently for performance
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         const instructionOverlay = document.getElementById('instructionOverlay');
+
+        const lineTop = document.getElementById('lineTop');
+        const lineBottom = document.getElementById('lineBottom');
+        const lineLeft = document.getElementById('lineLeft');
+        const lineRight = document.getElementById('lineRight');
+        const boundaryLines = [lineTop, lineBottom, lineLeft, lineRight];
 
         const startTimerBtn = document.getElementById('startTimerBtn');
         const stopTimerBtn = document.getElementById('stopTimerBtn');
@@ -331,9 +364,10 @@
         const statusMessage = document.getElementById('statusMessage');
 
         let stream;
-        let detectionZone = null; // { x, y, width, height }
-        let isDrawing = false;
-        let startX, startY;
+        let detectionZone = null; 
+        let activeLine = null;
+        let touchStartOffsetX, touchStartOffsetY; // Offset within the line element
+        let initialLineRect = {}; // To store line's original rect on touch start
 
         let timerRunning = false;
         let lapStartTime = 0;
@@ -344,31 +378,41 @@
         let prevImageData = null;
         let totalStartTime = 0;
 
-        const MOTION_THRESHOLD_BASE = 20; // This will be scaled by sensitivity
-        let MIN_LAP_TIME_MS = 1000; // 1 second default, configurable
+        const MOTION_THRESHOLD_BASE = 20;
+        let MIN_LAP_TIME_MS = 1000;
+        const MIN_ZONE_DIMENSION = 20; // Minimum width/height for detection zone in pixels
+        const LINE_THICKNESS = 10; // Must match CSS --line-thickness
 
-        // --- Initialization ---
         async function init() {
             try {
                 statusMessage.textContent = "Requesting camera access...";
                 statusMessage.className = "status-message status-info";
-                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } }); // selfie camera
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
                 video.srcObject = stream;
-                await video.play(); // Ensure video is playing before setting canvas size
+                await video.play();
 
-                // Set canvas dimensions once video is playing and has metadata
                 video.onloadedmetadata = () => {
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
-                    statusMessage.textContent = "Camera active. Please draw detection zone.";
-                    instructionOverlay.style.display = 'flex';
-                    // Try to load a previously defined zone
-                    loadDetectionZoneFromCookie(); 
-                    if (detectionZone) {
-                         drawDetectionZone(); // Redraw if loaded
-                         instructionOverlay.style.display = 'none';
-                         statusMessage.textContent = "Detection zone loaded. Ready to start.";
+                    
+                    loadDetectionZoneFromCookie(); // Try to load zone
+                    if (!detectionZone) { // If no zone loaded or invalid, create default
+                        const inset = 0.15; // 15% inset
+                        detectionZone = {
+                            x: canvas.width * inset,
+                            y: canvas.height * inset,
+                            width: canvas.width * (1 - 2 * inset),
+                            height: canvas.height * (1 - 2 * inset)
+                        };
                     }
+                    
+                    initializeBoundaryLines();
+                    positionLinesFromZone(); // Position draggable lines
+                    drawDetectionZone(); // Draw green rectangle
+                    
+                    statusMessage.textContent = "Camera active. Adjust zone if needed.";
+                    instructionOverlay.style.display = 'flex';
+                    setTimeout(() => instructionOverlay.style.display = 'none', 3000); // Hide after 3s
                 };
             } catch (err) {
                 console.error("Error accessing camera:", err);
@@ -378,63 +422,127 @@
             }
         }
 
-        // --- Detection Zone Drawing ---
-        canvas.addEventListener('mousedown', (e) => {
-            if (timerRunning) return;
-            const rect = canvas.getBoundingClientRect();
-            startX = (e.clientX - rect.left) * (canvas.width / rect.width);
-            startY = (e.clientY - rect.top) * (canvas.height / rect.height);
-            isDrawing = true;
-            detectionZone = null; // Clear previous zone while drawing new one
-            instructionOverlay.style.display = 'none'; // Hide instruction once drawing starts
-        });
-
-        canvas.addEventListener('mousemove', (e) => {
-            if (!isDrawing || timerRunning) return;
-            const rect = canvas.getBoundingClientRect();
-            let currentX = (e.clientX - rect.left) * (canvas.width / rect.width);
-            let currentY = (e.clientY - rect.top) * (canvas.height / rect.height);
-            
-            clearCanvas();
-            ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(startX, startY, currentX - startX, currentY - startY);
-        });
-
-        canvas.addEventListener('mouseup', (e) => {
-            if (!isDrawing || timerRunning) return;
-            isDrawing = false;
-            const rect = canvas.getBoundingClientRect();
-            let endX = (e.clientX - rect.left) * (canvas.width / rect.width);
-            let endY = (e.clientY - rect.top) * (canvas.height / rect.height);
-
-            detectionZone = {
-                x: Math.min(startX, endX),
-                y: Math.min(startY, endY),
-                width: Math.abs(endX - startX),
-                height: Math.abs(endY - startY)
+        function initializeBoundaryLines() {
+            boundaryLines.forEach(line => {
+                line.addEventListener('touchstart', handleTouchStart, { passive: false });
+            });
+            // Add move and end listeners to the container to catch drags outside the line itself
+            videoContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
+            videoContainer.addEventListener('touchend', handleTouchEnd);
+            videoContainer.addEventListener('touchcancel', handleTouchEnd); // Also handle cancel
+        }
+        
+        function scaleTouchToCanvas(touchX, touchY) {
+            const videoRect = videoContainer.getBoundingClientRect(); // Use videoContainer for consistency
+            return {
+                x: (touchX - videoRect.left) * (canvas.width / videoRect.width),
+                y: (touchY - videoRect.top) * (canvas.height / videoRect.height)
             };
+        }
 
-            if (detectionZone.width < 10 || detectionZone.height < 10) { // Zone too small
-                detectionZone = null;
-                clearCanvas();
-                statusMessage.textContent = "Detection zone too small. Please redraw.";
-                statusMessage.className = "status-message status-warning";
-                instructionOverlay.style.display = 'flex';
-                return;
+        function handleTouchStart(event) {
+            if (timerRunning) return;
+            event.preventDefault(); // Prevent scrolling
+            
+            activeLine = event.target;
+            activeLine.style.backgroundColor = 'var(--line-color-active)';
+
+            const touch = event.touches[0];
+            const scaledTouch = scaleTouchToCanvas(touch.clientX, touch.clientY);
+            
+            // Store initial rect of the line being dragged (in canvas coordinates)
+            initialLineRect = {
+                top: parseFloat(activeLine.style.top) || 0,
+                left: parseFloat(activeLine.style.left) || 0,
+                width: parseFloat(activeLine.style.width) || 0,
+                height: parseFloat(activeLine.style.height) || 0
+            };
+            // Store offset of touch from the line's origin, helps keep drag smooth
+            touchStartOffsetX = scaledTouch.x - initialLineRect.left;
+            touchStartOffsetY = scaledTouch.y - initialLineRect.top;
+            
+            instructionOverlay.style.display = 'none';
+        }
+
+        function handleTouchMove(event) {
+            if (!activeLine || timerRunning) return;
+            event.preventDefault();
+
+            const touch = event.touches[0];
+            const scaledTouch = scaleTouchToCanvas(touch.clientX, touch.clientY);
+
+            let newX = detectionZone.x;
+            let newY = detectionZone.y;
+            let newWidth = detectionZone.width;
+            let newHeight = detectionZone.height;
+
+            if (activeLine === lineTop) {
+                newY = Math.max(0, Math.min(scaledTouch.y - touchStartOffsetY, detectionZone.y + detectionZone.height - LINE_THICKNESS - MIN_ZONE_DIMENSION));
+                newHeight = (detectionZone.y + detectionZone.height) - newY;
+            } else if (activeLine === lineBottom) {
+                const bottomEdge = Math.min(canvas.height - LINE_THICKNESS, Math.max(scaledTouch.y - touchStartOffsetY, detectionZone.y + MIN_ZONE_DIMENSION));
+                newHeight = bottomEdge - detectionZone.y;
+            } else if (activeLine === lineLeft) {
+                newX = Math.max(0, Math.min(scaledTouch.x - touchStartOffsetX, detectionZone.x + detectionZone.width - LINE_THICKNESS - MIN_ZONE_DIMENSION));
+                newWidth = (detectionZone.x + detectionZone.width) - newX;
+            } else if (activeLine === lineRight) {
+                const rightEdge = Math.min(canvas.width - LINE_THICKNESS, Math.max(scaledTouch.x - touchStartOffsetX, detectionZone.x + MIN_ZONE_DIMENSION));
+                newWidth = rightEdge - detectionZone.x;
             }
             
+            // Update detectionZone ensuring minimum dimensions
+            if (newWidth >= MIN_ZONE_DIMENSION) {
+                detectionZone.x = newX;
+                detectionZone.width = newWidth;
+            }
+            if (newHeight >= MIN_ZONE_DIMENSION) {
+                detectionZone.y = newY;
+                detectionZone.height = newHeight;
+            }
+
+            positionLinesFromZone();
             drawDetectionZone();
+        }
+
+        function handleTouchEnd(event) {
+            if (!activeLine || timerRunning) return;
+            activeLine.style.backgroundColor = 'var(--line-color-idle)';
+            activeLine = null;
             saveDetectionZoneToCookie();
-            statusMessage.textContent = "Detection zone set. Ready to start.";
+            statusMessage.textContent = "Detection zone updated. Ready.";
             statusMessage.className = "status-message status-info";
-        });
+        }
+        
+        function positionLinesFromZone() {
+            if (!detectionZone || !lineTop) return; // Elements might not be ready
+
+            // Top line
+            lineTop.style.top = detectionZone.y + 'px';
+            lineTop.style.left = detectionZone.x + 'px';
+            lineTop.style.width = detectionZone.width + 'px';
+
+            // Bottom line: its top edge is (zone.y + zone.height - thickness)
+            lineBottom.style.top = (detectionZone.y + detectionZone.height - LINE_THICKNESS) + 'px';
+            lineBottom.style.left = detectionZone.x + 'px';
+            lineBottom.style.width = detectionZone.width + 'px';
+
+            // Left line
+            lineLeft.style.left = detectionZone.x + 'px';
+            lineLeft.style.top = detectionZone.y + 'px';
+            lineLeft.style.height = detectionZone.height + 'px';
+
+            // Right line: its left edge is (zone.x + zone.width - thickness)
+            lineRight.style.left = (detectionZone.x + detectionZone.width - LINE_THICKNESS) + 'px';
+            lineRight.style.top = detectionZone.y + 'px';
+            lineRight.style.height = detectionZone.height + 'px';
+        }
+
 
         function drawDetectionZone() {
             clearCanvas();
             if (detectionZone) {
-                ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)'; // Green for set zone
-                ctx.lineWidth = 3;
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+                ctx.lineWidth = 3; // Line width for the green rectangle
                 ctx.strokeRect(detectionZone.x, detectionZone.y, detectionZone.width, detectionZone.height);
             }
         }
@@ -442,59 +550,49 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
 
-        // --- Motion Detection ---
+        // --- Motion Detection (largely unchanged) ---
         function detectMotion() {
-            if (!timerRunning || !detectionZone || !video.videoWidth) { // video.videoWidth to ensure video is ready
+            if (!timerRunning || !detectionZone || !video.videoWidth) {
                 if(timerRunning) animationFrameId = requestAnimationFrame(detectMotion);
                 return;
             }
-
-            // Draw video frame to canvas (only the ROI for processing)
-            // Create an offscreen canvas for faster processing of ROI
             const offscreenCanvas = document.createElement('canvas');
             const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
-            offscreenCanvas.width = detectionZone.width;
-            offscreenCanvas.height = detectionZone.height;
+            offscreenCanvas.width = Math.max(1, Math.floor(detectionZone.width)); // Ensure positive dims
+            offscreenCanvas.height = Math.max(1, Math.floor(detectionZone.height));
 
-            // Draw the specific region of the video onto the offscreen canvas
-            // Correct for mirrored video: video total width - zone.x - zone.width
             const sourceX = video.videoWidth - detectionZone.x - detectionZone.width;
             offscreenCtx.drawImage(video, 
                                    sourceX, detectionZone.y, detectionZone.width, detectionZone.height,
-                                   0, 0, detectionZone.width, detectionZone.height);
+                                   0, 0, offscreenCanvas.width, offscreenCanvas.height); // Draw to offscreen canvas
             
-            const currentFrameData = offscreenCtx.getImageData(0, 0, detectionZone.width, detectionZone.height);
+            const currentFrameData = offscreenCtx.getImageData(0, 0, offscreenCanvas.width, offscreenCanvas.height);
             
             if (prevImageData) {
                 let diff = 0;
                 for (let i = 0; i < currentFrameData.data.length; i += 4) {
-                    // Basic pixel difference (grayscale could be more robust but this is simpler)
                     diff += Math.abs(currentFrameData.data[i] - prevImageData.data[i]);
                     diff += Math.abs(currentFrameData.data[i+1] - prevImageData.data[i+1]);
                     diff += Math.abs(currentFrameData.data[i+2] - prevImageData.data[i+2]);
                 }
-                const avgDiff = diff / (currentFrameData.data.length / 4); // Average difference per pixel
-                
-                // Adjust threshold based on sensitivity slider (lower slider value = higher sensitivity = lower threshold)
+                const avgDiff = diff / (currentFrameData.data.length / 4);
                 const motionThreshold = MOTION_THRESHOLD_BASE * ( (55 - parseInt(sensitivityRange.value)) / 30 );
-
 
                 if (avgDiff > motionThreshold) {
                     triggerLap();
-                    // Flash detection zone
-                    ctx.fillStyle = 'rgba(255, 255, 0, 0.5)'; // Yellow flash
+                    ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
                     ctx.fillRect(detectionZone.x, detectionZone.y, detectionZone.width, detectionZone.height);
-                    setTimeout(() => drawDetectionZone(), 100); // Redraw normal zone after flash
+                    setTimeout(() => drawDetectionZone(), 100);
                 }
             }
             prevImageData = currentFrameData;
             animationFrameId = requestAnimationFrame(detectMotion);
         }
 
-        // --- Timer Logic ---
+        // --- Timer Logic (largely unchanged) ---
         startTimerBtn.addEventListener('click', () => {
-            if (!detectionZone) {
-                statusMessage.textContent = "Please draw a detection zone first!";
+            if (!detectionZone || detectionZone.width < MIN_ZONE_DIMENSION || detectionZone.height < MIN_ZONE_DIMENSION) {
+                statusMessage.textContent = "Please set a valid detection zone first!";
                 statusMessage.className = "status-message status-warning";
                 instructionOverlay.style.display = 'flex';
                 return;
@@ -504,22 +602,23 @@
             timerRunning = true;
             startTimerBtn.disabled = true;
             stopTimerBtn.disabled = false;
-            resetTimerBtn.disabled = true; // Disable reset while running
+            resetTimerBtn.disabled = true;
             sensitivityRange.disabled = true;
             minLapTimeRange.disabled = true;
-            
+            boundaryLines.forEach(line => line.style.pointerEvents = 'none'); // Disable line dragging
+
             lapStartTime = performance.now();
-            if (currentLap === 0) { // First start or after reset
+            if (currentLap === 0) {
                 totalStartTime = lapStartTime;
             }
-            lastTriggerTime = performance.now() - MIN_LAP_TIME_MS; // Allow immediate first trigger
+            lastTriggerTime = performance.now() - MIN_LAP_TIME_MS;
             
             statusMessage.textContent = "Timer started. Listening for motion...";
             statusMessage.className = "status-message status-info";
             
-            prevImageData = null; // Reset previous frame on start
+            prevImageData = null;
             detectMotion();
-            updateTotalTimeDisplay(); // Start total time display
+            updateTotalTimeDisplay();
         });
 
         stopTimerBtn.addEventListener('click', () => {
@@ -531,13 +630,14 @@
             resetTimerBtn.disabled = false;
             sensitivityRange.disabled = false;
             minLapTimeRange.disabled = false;
+            boundaryLines.forEach(line => line.style.pointerEvents = 'auto'); // Re-enable line dragging
             prevImageData = null;
-            statusMessage.textContent = "Timer stopped. Define zone or start again.";
+            statusMessage.textContent = "Timer stopped. Adjust zone or start again.";
             statusMessage.className = "status-message status-info";
         });
 
         resetTimerBtn.addEventListener('click', () => {
-            stopTimerBtn.click(); // Stop if running
+            if (timerRunning) stopTimerBtn.click(); 
             currentLap = 0;
             lapTimes = [];
             lapStartTime = 0;
@@ -550,31 +650,41 @@
             totalTimeDisplay.textContent = "0.000s";
             lapCountDisplay.textContent = "0";
             lastLapTimeDisplay.textContent = "0.000s";
-            sessionNameInput.value = ''; // Clear session name on reset
-            statusMessage.textContent = "Timer reset. Draw zone and start.";
+            sessionNameInput.value = '';
+            
+            // Reset detection zone to default and reposition lines
+            const inset = 0.15;
+            detectionZone = {
+                x: canvas.width * inset,
+                y: canvas.height * inset,
+                width: canvas.width * (1 - 2 * inset),
+                height: canvas.height * (1 - 2 * inset)
+            };
+            positionLinesFromZone();
+            drawDetectionZone();
+            saveDetectionZoneToCookie(); // Save the reset zone
+
+            statusMessage.textContent = "Timer reset. Adjust zone and start.";
             statusMessage.className = "status-message status-info";
-            if (!detectionZone) instructionOverlay.style.display = 'flex';
+            instructionOverlay.style.display = 'flex';
+            setTimeout(() => instructionOverlay.style.display = 'none', 3000);
         });
 
         function triggerLap() {
             const now = performance.now();
             if (now - lastTriggerTime < MIN_LAP_TIME_MS) {
-                return; // Debounce
+                return;
             }
             lastTriggerTime = now;
 
-            if (currentLap > 0 || lapTimes.length > 0) { // Don't record "lap 0" time if it's the very first trigger
+            if (currentLap > 0 || lapTimes.length > 0) {
                  const lapTime = (now - lapStartTime) / 1000;
                  lapTimes.push(lapTime);
             } else if (currentLap === 0 && lapTimes.length === 0) {
-                 // This is the first trigger, marks the end of the "formation lap" and start of lap 1 time
-                 totalStartTime = now; // Actual race start time
+                 totalStartTime = now;
             }
-
-
             currentLap++;
-            lapStartTime = now; // Reset lap start time for the next lap
-            
+            lapStartTime = now;
             updateLapDisplay();
             speakLapTime();
         }
@@ -584,7 +694,7 @@
                 const elapsed = (performance.now() - totalStartTime) / 1000;
                 totalTimeDisplay.textContent = elapsed.toFixed(3) + 's';
                 requestAnimationFrame(updateTotalTimeDisplay);
-            } else if (lapTimes.length > 0) { // When stopped, show sum of recorded laps
+            } else if (lapTimes.length > 0) {
                  const sumOfLaps = lapTimes.reduce((sum, t) => sum + t, 0);
                  totalTimeDisplay.textContent = sumOfLaps.toFixed(3) + 's';
             } else {
@@ -592,7 +702,6 @@
             }
         }
 
-        // --- UI Updates & Calculations ---
         function updateLapDisplay() {
             lapCountDisplay.textContent = currentLap;
             if (lapTimes.length > 0) {
@@ -601,14 +710,14 @@
 
                 const li = document.createElement('li');
                 li.textContent = `Lap ${lapTimes.length}: ${lastLap.toFixed(3)}s`;
-                lapTimesList.prepend(li); // Add to top
+                lapTimesList.prepend(li);
 
                 updateBestLap();
                 updateBest3Consecutive();
             } else {
                 lastLapTimeDisplay.textContent = "0.000s";
             }
-            updateTotalTimeDisplay(); // Recalculate total time display
+            updateTotalTimeDisplay();
         }
 
         function updateBestLap() {
@@ -618,8 +727,6 @@
             }
             const best = Math.min(...lapTimes);
             bestLapTimeDisplay.textContent = best.toFixed(3) + 's';
-
-            // Highlight best lap in list
             const lis = lapTimesList.getElementsByTagName('li');
             for (let li of lis) {
                 li.classList.remove('best-lap');
@@ -636,7 +743,6 @@
             }
             let minSum = Infinity;
             let bestStartIndex = -1;
-
             for (let i = 0; i <= lapTimes.length - 3; i++) {
                 const currentSum = lapTimes[i] + lapTimes[i+1] + lapTimes[i+2];
                 if (currentSum < minSum) {
@@ -654,17 +760,15 @@
             }
         }
 
-        // --- Speech Synthesis ---
         function speakLapTime() {
             if (lapTimes.length > 0 && 'speechSynthesis' in window) {
                 const lastLap = lapTimes[lapTimes.length - 1];
-                const timeStr = lastLap.toFixed(2).replace('.', ' point '); // e.g. "12 point 34"
+                const timeStr = lastLap.toFixed(2).replace('.', ' point ');
                 const utterance = new SpeechSynthesisUtterance(`Lap ${lapTimes.length}. ${timeStr} seconds.`);
                 speechSynthesis.speak(utterance);
             }
         }
 
-        // --- Settings ---
         sensitivityRange.addEventListener('input', (e) => {
             sensitivityValue.textContent = e.target.value;
         });
@@ -672,16 +776,13 @@
             minLapTimeValue.textContent = parseFloat(e.target.value).toFixed(1);
             MIN_LAP_TIME_MS = parseFloat(e.target.value) * 1000;
         });
-        // Initialize MIN_LAP_TIME_MS from range default
         MIN_LAP_TIME_MS = parseFloat(minLapTimeRange.value) * 1000;
         minLapTimeValue.textContent = parseFloat(minLapTimeRange.value).toFixed(1);
         sensitivityValue.textContent = sensitivityRange.value;
 
-
-        // --- Session Management (Cookies) ---
         function saveDetectionZoneToCookie() {
             if (detectionZone) {
-                document.cookie = `racegow_detectionZone=${JSON.stringify(detectionZone)};max-age=31536000;path=/`; // Expires in 1 year
+                document.cookie = `racegow_detectionZone=${JSON.stringify(detectionZone)};max-age=31536000;path=/;samesite=Lax`;
             }
         }
         function loadDetectionZoneFromCookie() {
@@ -690,11 +791,15 @@
                 const [name, value] = cookie.trim().split('=');
                 if (name === 'racegow_detectionZone') {
                     try {
-                        detectionZone = JSON.parse(value);
-                        if (detectionZone && detectionZone.x !== undefined) { // Basic validation
+                        const parsedZone = JSON.parse(value);
+                        // Basic validation for the loaded zone
+                        if (parsedZone && typeof parsedZone.x === 'number' && typeof parsedZone.y === 'number' &&
+                            typeof parsedZone.width === 'number' && parsedZone.width >= MIN_ZONE_DIMENSION &&
+                            typeof parsedZone.height === 'number' && parsedZone.height >= MIN_ZONE_DIMENSION) {
+                            detectionZone = parsedZone;
                             console.log("Loaded detection zone from cookie:", detectionZone);
-                            // Will be drawn by init if video is ready
                         } else {
+                            console.warn("Invalid detection zone data in cookie.");
                             detectionZone = null;
                         }
                     } catch (e) {
@@ -705,7 +810,6 @@
                 }
             }
         }
-
 
         saveSessionBtn.addEventListener('click', () => {
             const sessionName = sessionNameInput.value.trim() || `Session ${new Date().toLocaleString()}`;
@@ -718,8 +822,7 @@
                 laps: lapTimes,
                 date: new Date().toISOString()
             };
-            // For simplicity, we'll save just the last session. A more robust system would store multiple.
-            document.cookie = `racegow_lastSession=${JSON.stringify(sessionData)};max-age=31536000;path=/`; // Expires in 1 year
+            document.cookie = `racegow_lastSession=${JSON.stringify(sessionData)};max-age=31536000;path=/;samesite=Lax`;
             alert(`Session "${sessionName}" saved!`);
         });
 
@@ -731,23 +834,21 @@
                     try {
                         const sessionData = JSON.parse(value);
                         if (sessionData && sessionData.laps) {
-                            resetTimerBtn.click(); // Clear current state
+                            if (timerRunning) stopTimerBtn.click();
                             lapTimes = sessionData.laps;
                             sessionNameInput.value = sessionData.name || "Loaded Session";
-                            currentLap = lapTimes.length; // Set current lap number based on loaded laps
+                            currentLap = lapTimes.length;
 
-                            lapTimesList.innerHTML = ''; // Clear current list
+                            lapTimesList.innerHTML = '';
                             lapTimes.forEach((lapTime, index) => {
                                 const li = document.createElement('li');
                                 li.textContent = `Lap ${index + 1}: ${lapTime.toFixed(3)}s`;
-                                lapTimesList.prepend(li); // Prepend to keep order correct (newest at top)
+                                lapTimesList.prepend(li);
                             });
-                            // Reverse the list items after prepending all to get correct visual order (Lap 1 at top)
                             const items = Array.from(lapTimesList.childNodes);
                             items.reverse().forEach(item => lapTimesList.appendChild(item));
 
-
-                            updateLapDisplay(); // This will also call sub-updates
+                            updateLapDisplay();
                             statusMessage.textContent = `Loaded session: "${sessionNameInput.value}"`;
                             statusMessage.className = "status-message status-info";
                             alert(`Session "${sessionNameInput.value}" loaded.`);
@@ -764,9 +865,7 @@
             alert("No saved session found.");
         });
 
-        // --- Start everything ---
         init();
-
     </script>
 </body>
 </html>
