@@ -6,7 +6,7 @@
     <title>Racegow FPV Lap Timer</title>
     <style>
         :root {
-            --primary-color: #007bff; /* Racegow Blue (example) */
+            --primary-color: #007bff;
             --secondary-color: #6c757d;
             --background-color: #f0f2f5;
             --surface-color: #ffffff;
@@ -15,9 +15,10 @@
             --warning-color: #ffc107;
             --danger-color: #dc3545;
             --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            --line-thickness: 10px; /* Thickness of draggable lines */
-            --line-color-idle: rgba(220, 53, 69, 0.6); /* Bootstrap danger, semi-transparent */
-            --line-color-active: rgba(220, 53, 69, 0.9); 
+            --line-visual-thickness: 10px; /* Visual thickness of draggable lines in CSS pixels */
+            --line-touch-target-thickness: 20px; /* Larger invisible touch target for lines */
+            --line-color-idle: rgba(220, 53, 69, 0.5); /* Reddish, semi-transparent */
+            --line-color-active: rgba(220, 53, 69, 0.8);
         }
 
         body {
@@ -60,40 +61,67 @@
             width: 100%;
             background-color: #000;
             border-radius: 8px;
-            overflow: hidden; /* Important for line positioning */
+            overflow: hidden;
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            user-select: none; /* Prevent text selection during drag */
+            -webkit-user-select: none;
+            -ms-user-select: none;
+
         }
 
         #videoFeed {
             width: 100%;
             display: block;
-            transform: scaleX(-1); /* Mirror front camera */
+            transform: scaleX(-1);
         }
 
         #detectionCanvas {
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none; /* Canvas is for display only now */
+            width: 100%; /* Will be set by JS to match videoContainer */
+            height: 100%;/* Will be set by JS to match videoContainer */
+            pointer-events: none;
         }
 
         .boundary-line {
             position: absolute;
-            background-color: var(--line-color-idle);
+            background-color: var(--line-color-idle); /* Visible part */
             z-index: 5;
-            touch-action: none; /* Crucial for preventing scroll on drag */
+            touch-action: none;
             box-sizing: border-box;
-            /* border: 1px dashed rgba(255,255,255,0.3); Add border for better visibility if needed */
         }
+        /* Visual part of the line */
+        .boundary-line::before {
+            content: '';
+            position: absolute;
+            background-color: var(--line-color-idle);
+        }
+        /* Touch target (larger than visual part) */
         #lineTop, #lineBottom {
-            height: var(--line-thickness);
+            height: var(--line-touch-target-thickness);
             cursor: ns-resize;
         }
+        #lineTop::before, #lineBottom::before {
+            height: var(--line-visual-thickness);
+            width: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
         #lineLeft, #lineRight {
-            width: var(--line-thickness);
+            width: var(--line-touch-target-thickness);
             cursor: ew-resize;
+        }
+         #lineLeft::before, #lineRight::before {
+            width: var(--line-visual-thickness);
+            height: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        /* Change color of visual part when active */
+        .boundary-line.active::before {
+            background-color: var(--line-color-active);
         }
 
 
@@ -124,7 +152,7 @@
             font-size: 1em;
             transition: background-color 0.2s ease;
         }
-        button:hover {
+        button:hover:not(:disabled) {
             background-color: #0056b3;
         }
         button:disabled {
@@ -132,11 +160,11 @@
             cursor: not-allowed;
         }
         .btn-success { background-color: var(--success-color); }
-        .btn-success:hover { background-color: #1e7e34; }
+        .btn-success:hover:not(:disabled) { background-color: #1e7e34; }
         .btn-warning { background-color: var(--warning-color); color: #333; }
-        .btn-warning:hover { background-color: #d39e00; }
+        .btn-warning:hover:not(:disabled) { background-color: #d39e00; }
         .btn-danger { background-color: var(--danger-color); }
-        .btn-danger:hover { background-color: #bd2130; }
+        .btn-danger:hover:not(:disabled) { background-color: #bd2130; }
 
 
         input[type="text"], input[type="range"] {
@@ -164,7 +192,6 @@
             min-width: 30px;
             text-align: right;
         }
-
 
         #lapTimesList {
             list-style-type: none;
@@ -195,7 +222,6 @@
         .status-info { background-color: #e7f3fe; color: #0c5460; border: 1px solid #b8daff;}
         .status-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;}
         .status-warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
-
 
         .flex-controls {
             display: flex;
@@ -263,7 +289,6 @@
         <div class="video-container">
             <video id="videoFeed" playsinline autoplay muted></video>
             <canvas id="detectionCanvas"></canvas>
-            <!-- Draggable Boundary Lines -->
             <div class="boundary-line" id="lineTop"></div>
             <div class="boundary-line" id="lineBottom"></div>
             <div class="boundary-line" id="lineLeft"></div>
@@ -274,7 +299,7 @@
         <div class="controls">
             <h2>Timer Controls</h2>
             <div class="flex-controls">
-                <button id="startTimerBtn" class="btn-success">Start Timer</button>
+                <button id="startTimerBtn" class="btn-success" disabled>Start Timer</button>
                 <button id="stopTimerBtn" disabled class="btn-danger">Stop Timer</button>
                 <button id="resetTimerBtn" class="btn-warning">Reset All</button>
             </div>
@@ -289,7 +314,7 @@
                 <span id="minLapTimeValue">1.0</span>
             </div>
         </div>
-
+        
         <div class="stats-display">
             <h2>Live Stats</h2>
             <div class="stats-grid">
@@ -333,25 +358,19 @@
     <script>
         const video = document.getElementById('videoFeed');
         const videoContainer = document.querySelector('.video-container');
-        const canvas = document.getElementById('detectionCanvas');
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const canvasEl = document.getElementById('detectionCanvas'); // Renamed to avoid conflict with canvas global
+        const ctx = canvasEl.getContext('2d', { willReadFrequently: true });
         const instructionOverlay = document.getElementById('instructionOverlay');
 
         const lineTop = document.getElementById('lineTop');
         const lineBottom = document.getElementById('lineBottom');
         const lineLeft = document.getElementById('lineLeft');
         const lineRight = document.getElementById('lineRight');
-        const boundaryLines = [lineTop, lineBottom, lineLeft, lineRight];
+        const boundaryLineElements = [lineTop, lineBottom, lineLeft, lineRight];
 
         const startTimerBtn = document.getElementById('startTimerBtn');
         const stopTimerBtn = document.getElementById('stopTimerBtn');
-        const resetTimerBtn = document.getElementById('resetTimerBtn');
-        
-        const sensitivityRange = document.getElementById('sensitivityRange');
-        const sensitivityValue = document.getElementById('sensitivityValue');
-        const minLapTimeRange = document.getElementById('minLapTimeRange');
-        const minLapTimeValue = document.getElementById('minLapTimeValue');
-
+        // ... (other element getters are fine)
         const lapCountDisplay = document.getElementById('lapCount');
         const lastLapTimeDisplay = document.getElementById('lastLapTime');
         const bestLapTimeDisplay = document.getElementById('bestLapTime');
@@ -362,12 +381,17 @@
         const saveSessionBtn = document.getElementById('saveSessionBtn');
         const loadSessionBtn = document.getElementById('loadSessionBtn');
         const statusMessage = document.getElementById('statusMessage');
+        const sensitivityRange = document.getElementById('sensitivityRange');
+        const sensitivityValue = document.getElementById('sensitivityValue');
+        const minLapTimeRange = document.getElementById('minLapTimeRange');
+        const minLapTimeValue = document.getElementById('minLapTimeValue');
+
 
         let stream;
         let detectionZone = null; 
         let activeLine = null;
-        let touchStartOffsetX, touchStartOffsetY; // Offset within the line element
-        let initialLineRect = {}; // To store line's original rect on touch start
+        let initialPointerViewportX, initialPointerViewportY;
+        let initialZoneState = {}; // To store zone state at drag start
 
         let timerRunning = false;
         let lapStartTime = 0;
@@ -380,8 +404,10 @@
 
         const MOTION_THRESHOLD_BASE = 20;
         let MIN_LAP_TIME_MS = 1000;
-        const MIN_ZONE_DIMENSION = 20; // Minimum width/height for detection zone in pixels
-        const LINE_THICKNESS = 10; // Must match CSS --line-thickness
+        const MIN_ZONE_DIMENSION_CANVAS = 20; // Minimum width/height for detection zone in canvas pixels
+        const LINE_VISUAL_THICKNESS_CSS = 10; // Matches --line-visual-thickness in CSS
+        const LINE_TOUCH_TARGET_THICKNESS_CSS = 20; // Matches --line-touch-target-thickness
+
 
         async function init() {
             try {
@@ -392,121 +418,156 @@
                 await video.play();
 
                 video.onloadedmetadata = () => {
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
+                    // Set canvas internal resolution to video's native resolution
+                    canvasEl.width = video.videoWidth;
+                    canvasEl.height = video.videoHeight;
+
+                    // Set canvas display size to match video container's display size
+                    // This is important if videoContainer is scaled responsively
+                    canvasEl.style.width = videoContainer.offsetWidth + 'px';
+                    canvasEl.style.height = videoContainer.offsetHeight + 'px';
                     
-                    loadDetectionZoneFromCookie(); // Try to load zone
-                    if (!detectionZone) { // If no zone loaded or invalid, create default
-                        const inset = 0.15; // 15% inset
+                    loadDetectionZoneFromCookie(); 
+                    if (!detectionZone || !isValidZone(detectionZone)) { 
+                        const inset = 0.20; // 20% inset
                         detectionZone = {
-                            x: canvas.width * inset,
-                            y: canvas.height * inset,
-                            width: canvas.width * (1 - 2 * inset),
-                            height: canvas.height * (1 - 2 * inset)
+                            x: canvasEl.width * inset,
+                            y: canvasEl.height * inset,
+                            width: canvasEl.width * (1 - 2 * inset),
+                            height: canvasEl.height * (1 - 2 * inset)
                         };
                     }
                     
-                    initializeBoundaryLines();
-                    positionLinesFromZone(); // Position draggable lines
-                    drawDetectionZone(); // Draw green rectangle
+                    initializeBoundaryLineInteractions();
+                    positionLinesFromZone(); 
+                    drawDetectionZone(); 
                     
-                    statusMessage.textContent = "Camera active. Adjust zone if needed.";
+                    statusMessage.textContent = "Camera active. Adjust zone if needed, then start.";
+                    statusMessage.className = "status-message status-info";
+                    startTimerBtn.disabled = false; // Enable start button now
                     instructionOverlay.style.display = 'flex';
-                    setTimeout(() => instructionOverlay.style.display = 'none', 3000); // Hide after 3s
+                    setTimeout(() => {
+                        if (instructionOverlay.style.display !== 'none') { // Only hide if not interacted with
+                           instructionOverlay.style.display = 'none';
+                        }
+                    }, 3000);
                 };
+
+                video.onerror = (e) => {
+                    console.error("Video error:", e);
+                    statusMessage.textContent = "Video error. Check camera permissions or try another browser.";
+                    statusMessage.className = "status-message status-error";
+                    startTimerBtn.disabled = true;
+                };
+
             } catch (err) {
                 console.error("Error accessing camera:", err);
-                statusMessage.textContent = `Error: ${err.name}. Ensure camera access is allowed.`;
+                statusMessage.textContent = `Error: ${err.name}. Ensure camera access is allowed. Try refreshing.`;
                 statusMessage.className = "status-message status-error";
                 startTimerBtn.disabled = true;
             }
         }
 
-        function initializeBoundaryLines() {
-            boundaryLines.forEach(line => {
-                line.addEventListener('touchstart', handleTouchStart, { passive: false });
+        function isValidZone(zone) {
+            return zone &&
+                   typeof zone.x === 'number' && typeof zone.y === 'number' &&
+                   typeof zone.width === 'number' && zone.width >= MIN_ZONE_DIMENSION_CANVAS &&
+                   typeof zone.height === 'number' && zone.height >= MIN_ZONE_DIMENSION_CANVAS;
+        }
+
+        function initializeBoundaryLineInteractions() {
+            boundaryLineElements.forEach(line => {
+                line.addEventListener('mousedown', handlePointerDown);
+                line.addEventListener('touchstart', handlePointerDown, { passive: false });
             });
-            // Add move and end listeners to the container to catch drags outside the line itself
-            videoContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
-            videoContainer.addEventListener('touchend', handleTouchEnd);
-            videoContainer.addEventListener('touchcancel', handleTouchEnd); // Also handle cancel
+            // Add move and end listeners to document to catch drags outside videoContainer
+            document.addEventListener('mousemove', handlePointerMove);
+            document.addEventListener('touchmove', handlePointerMove, { passive: false });
+            
+            document.addEventListener('mouseup', handlePointerUp);
+            document.addEventListener('touchend', handlePointerUp);
+            document.addEventListener('touchcancel', handlePointerUp);
         }
         
-        function scaleTouchToCanvas(touchX, touchY) {
-            const videoRect = videoContainer.getBoundingClientRect(); // Use videoContainer for consistency
-            return {
-                x: (touchX - videoRect.left) * (canvas.width / videoRect.width),
-                y: (touchY - videoRect.top) * (canvas.height / videoRect.height)
-            };
-        }
-
-        function handleTouchStart(event) {
+        function handlePointerDown(event) {
             if (timerRunning) return;
-            event.preventDefault(); // Prevent scrolling
-            
-            activeLine = event.target;
-            activeLine.style.backgroundColor = 'var(--line-color-active)';
+            if (event.type === 'touchstart') event.preventDefault(); // Prevent scrolling only for touch
 
-            const touch = event.touches[0];
-            const scaledTouch = scaleTouchToCanvas(touch.clientX, touch.clientY);
+            activeLine = event.target.closest('.boundary-line'); // Ensure we get the line div
+            if (!activeLine) return;
             
-            // Store initial rect of the line being dragged (in canvas coordinates)
-            initialLineRect = {
-                top: parseFloat(activeLine.style.top) || 0,
-                left: parseFloat(activeLine.style.left) || 0,
-                width: parseFloat(activeLine.style.width) || 0,
-                height: parseFloat(activeLine.style.height) || 0
-            };
-            // Store offset of touch from the line's origin, helps keep drag smooth
-            touchStartOffsetX = scaledTouch.x - initialLineRect.left;
-            touchStartOffsetY = scaledTouch.y - initialLineRect.top;
+            activeLine.classList.add('active');
+
+            initialPointerViewportX = (event.type === 'touchstart') ? event.touches[0].clientX : event.clientX;
+            initialPointerViewportY = (event.type === 'touchstart') ? event.touches[0].clientY : event.clientY;
+            initialZoneState = { ...detectionZone }; // Shallow copy
             
-            instructionOverlay.style.display = 'none';
+            instructionOverlay.style.display = 'none'; // Hide overlay on interaction
         }
 
-        function handleTouchMove(event) {
+        function handlePointerMove(event) {
             if (!activeLine || timerRunning) return;
-            event.preventDefault();
+            if (event.type === 'touchmove') event.preventDefault();
 
-            const touch = event.touches[0];
-            const scaledTouch = scaleTouchToCanvas(touch.clientX, touch.clientY);
+            const currentPointerViewportX = (event.type === 'touchmove') ? event.touches[0].clientX : event.clientX;
+            const currentPointerViewportY = (event.type === 'touchmove') ? event.touches[0].clientY : event.clientY;
 
-            let newX = detectionZone.x;
-            let newY = detectionZone.y;
-            let newWidth = detectionZone.width;
-            let newHeight = detectionZone.height;
+            const deltaViewportX = currentPointerViewportX - initialPointerViewportX;
+            const deltaViewportY = currentPointerViewportY - initialPointerViewportY;
+
+            // Convert viewport deltas to canvas pixel deltas
+            const videoRect = videoContainer.getBoundingClientRect(); // Get current display size
+            const deltaCanvasX = deltaViewportX * (canvasEl.width / videoRect.width);
+            const deltaCanvasY = deltaViewportY * (canvasEl.height / videoRect.height);
+            
+            let newX = initialZoneState.x;
+            let newY = initialZoneState.y;
+            let newWidth = initialZoneState.width;
+            let newHeight = initialZoneState.height;
 
             if (activeLine === lineTop) {
-                newY = Math.max(0, Math.min(scaledTouch.y - touchStartOffsetY, detectionZone.y + detectionZone.height - LINE_THICKNESS - MIN_ZONE_DIMENSION));
-                newHeight = (detectionZone.y + detectionZone.height) - newY;
+                newY = initialZoneState.y + deltaCanvasY;
+                newHeight = initialZoneState.height - deltaCanvasY;
             } else if (activeLine === lineBottom) {
-                const bottomEdge = Math.min(canvas.height - LINE_THICKNESS, Math.max(scaledTouch.y - touchStartOffsetY, detectionZone.y + MIN_ZONE_DIMENSION));
-                newHeight = bottomEdge - detectionZone.y;
+                newHeight = initialZoneState.height + deltaCanvasY;
             } else if (activeLine === lineLeft) {
-                newX = Math.max(0, Math.min(scaledTouch.x - touchStartOffsetX, detectionZone.x + detectionZone.width - LINE_THICKNESS - MIN_ZONE_DIMENSION));
-                newWidth = (detectionZone.x + detectionZone.width) - newX;
+                newX = initialZoneState.x + deltaCanvasX;
+                newWidth = initialZoneState.width - deltaCanvasX;
             } else if (activeLine === lineRight) {
-                const rightEdge = Math.min(canvas.width - LINE_THICKNESS, Math.max(scaledTouch.x - touchStartOffsetX, detectionZone.x + MIN_ZONE_DIMENSION));
-                newWidth = rightEdge - detectionZone.x;
+                newWidth = initialZoneState.width + deltaCanvasX;
             }
             
-            // Update detectionZone ensuring minimum dimensions
-            if (newWidth >= MIN_ZONE_DIMENSION) {
-                detectionZone.x = newX;
-                detectionZone.width = newWidth;
+            // Apply constraints
+            // Ensure positive width/height first
+            if (newWidth < MIN_ZONE_DIMENSION_CANVAS) {
+                if (activeLine === lineLeft) newX = initialZoneState.x + initialZoneState.width - MIN_ZONE_DIMENSION_CANVAS;
+                newWidth = MIN_ZONE_DIMENSION_CANVAS;
             }
-            if (newHeight >= MIN_ZONE_DIMENSION) {
-                detectionZone.y = newY;
-                detectionZone.height = newHeight;
+            if (newHeight < MIN_ZONE_DIMENSION_CANVAS) {
+                if (activeLine === lineTop) newY = initialZoneState.y + initialZoneState.height - MIN_ZONE_DIMENSION_CANVAS;
+                newHeight = MIN_ZONE_DIMENSION_CANVAS;
             }
+
+            // Boundary constraints (0 to canvasEl.width/height)
+            newX = Math.max(0, Math.min(newX, canvasEl.width - newWidth));
+            newY = Math.max(0, Math.min(newY, canvasEl.height - newHeight));
+            // Re-check width/height after boundary adjustment if X/Y was clamped
+            newWidth = Math.min(newWidth, canvasEl.width - newX);
+            newHeight = Math.min(newHeight, canvasEl.height - newY);
+
+
+            detectionZone.x = newX;
+            detectionZone.y = newY;
+            detectionZone.width = newWidth;
+            detectionZone.height = newHeight;
 
             positionLinesFromZone();
             drawDetectionZone();
         }
 
-        function handleTouchEnd(event) {
+        function handlePointerUp(event) {
             if (!activeLine || timerRunning) return;
-            activeLine.style.backgroundColor = 'var(--line-color-idle)';
+            activeLine.classList.remove('active');
             activeLine = null;
             saveDetectionZoneToCookie();
             statusMessage.textContent = "Detection zone updated. Ready.";
@@ -514,59 +575,89 @@
         }
         
         function positionLinesFromZone() {
-            if (!detectionZone || !lineTop) return; // Elements might not be ready
+            if (!detectionZone || !lineTop || !videoContainer.offsetWidth) return; 
 
-            // Top line
-            lineTop.style.top = detectionZone.y + 'px';
-            lineTop.style.left = detectionZone.x + 'px';
-            lineTop.style.width = detectionZone.width + 'px';
+            const videoRect = videoContainer.getBoundingClientRect(); // Get current display dimensions
+            const scaleX = (val) => (val / canvasEl.width) * videoRect.width;
+            const scaleY = (val) => (val / canvasEl.height) * videoRect.height;
 
-            // Bottom line: its top edge is (zone.y + zone.height - thickness)
-            lineBottom.style.top = (detectionZone.y + detectionZone.height - LINE_THICKNESS) + 'px';
-            lineBottom.style.left = detectionZone.x + 'px';
-            lineBottom.style.width = detectionZone.width + 'px';
+            // For horizontal lines (top, bottom), width is scaled detectionZone.width
+            // Their left position is scaled detectionZone.x
+            // Their top position is scaled detectionZone.y (for top) or (detectionZone.y + detectionZone.height) for bottom, adjusted by line thickness
+            lineTop.style.left = scaleX(detectionZone.x) - (LINE_TOUCH_TARGET_THICKNESS_CSS / 2 - LINE_VISUAL_THICKNESS_CSS / 2) + 'px'; // Center visual part
+            lineTop.style.top = scaleY(detectionZone.y) - (LINE_TOUCH_TARGET_THICKNESS_CSS / 2) + 'px';
+            lineTop.style.width = scaleX(detectionZone.width) + (LINE_TOUCH_TARGET_THICKNESS_CSS - LINE_VISUAL_THICKNESS_CSS) + 'px';
 
-            // Left line
-            lineLeft.style.left = detectionZone.x + 'px';
-            lineLeft.style.top = detectionZone.y + 'px';
-            lineLeft.style.height = detectionZone.height + 'px';
+            lineBottom.style.left = scaleX(detectionZone.x) - (LINE_TOUCH_TARGET_THICKNESS_CSS / 2 - LINE_VISUAL_THICKNESS_CSS / 2) + 'px';
+            lineBottom.style.top = scaleY(detectionZone.y + detectionZone.height) - (LINE_TOUCH_TARGET_THICKNESS_CSS / 2) + 'px';
+            lineBottom.style.width = scaleX(detectionZone.width) + (LINE_TOUCH_TARGET_THICKNESS_CSS - LINE_VISUAL_THICKNESS_CSS) + 'px';
 
-            // Right line: its left edge is (zone.x + zone.width - thickness)
-            lineRight.style.left = (detectionZone.x + detectionZone.width - LINE_THICKNESS) + 'px';
-            lineRight.style.top = detectionZone.y + 'px';
-            lineRight.style.height = detectionZone.height + 'px';
+            // For vertical lines (left, right), height is scaled detectionZone.height
+            // Their top position is scaled detectionZone.y
+            // Their left position is scaled detectionZone.x (for left) or (detectionZone.x + detectionZone.width) for right, adjusted by line thickness
+            lineLeft.style.top = scaleY(detectionZone.y) - (LINE_TOUCH_TARGET_THICKNESS_CSS / 2 - LINE_VISUAL_THICKNESS_CSS / 2) + 'px';
+            lineLeft.style.left = scaleX(detectionZone.x) - (LINE_TOUCH_TARGET_THICKNESS_CSS / 2) + 'px';
+            lineLeft.style.height = scaleY(detectionZone.height) + (LINE_TOUCH_TARGET_THICKNESS_CSS - LINE_VISUAL_THICKNESS_CSS) + 'px';
+
+            lineRight.style.top = scaleY(detectionZone.y) - (LINE_TOUCH_TARGET_THICKNESS_CSS / 2 - LINE_VISUAL_THICKNESS_CSS / 2) + 'px';
+            lineRight.style.left = scaleX(detectionZone.x + detectionZone.width) - (LINE_TOUCH_TARGET_THICKNESS_CSS / 2) + 'px';
+            lineRight.style.height = scaleY(detectionZone.height) + (LINE_TOUCH_TARGET_THICKNESS_CSS - LINE_VISUAL_THICKNESS_CSS) + 'px';
         }
 
 
         function drawDetectionZone() {
-            clearCanvas();
+            // Scale canvas display size to match video container, if it changed (e.g. resize)
+            if (canvasEl.style.width !== videoContainer.offsetWidth + 'px' || canvasEl.style.height !== videoContainer.offsetHeight + 'px') {
+                canvasEl.style.width = videoContainer.offsetWidth + 'px';
+                canvasEl.style.height = videoContainer.offsetHeight + 'px';
+            }
+            
+            ctx.clearRect(0, 0, canvasEl.width, canvasEl.height); // Clear based on internal resolution
             if (detectionZone) {
-                ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
-                ctx.lineWidth = 3; // Line width for the green rectangle
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.9)'; // Brighter green
+                ctx.lineWidth = Math.max(2, 6 * (videoContainer.offsetWidth / canvasEl.width)); // Scaled line width
                 ctx.strokeRect(detectionZone.x, detectionZone.y, detectionZone.width, detectionZone.height);
             }
         }
-        function clearCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
 
-        // --- Motion Detection (largely unchanged) ---
+        // Resize observer to re-calculate line positions and canvas display if container size changes
+        const resizeObserver = new ResizeObserver(entries => {
+            for (let entry of entries) {
+                if (entry.target === videoContainer) {
+                    if (detectionZone) { // Only if zone exists
+                        positionLinesFromZone();
+                        drawDetectionZone();
+                    }
+                }
+            }
+        });
+        resizeObserver.observe(videoContainer);
+
+
+        // --- Motion Detection --- (Minor change for clarity in drawImage)
         function detectMotion() {
-            if (!timerRunning || !detectionZone || !video.videoWidth) {
+            if (!timerRunning || !detectionZone || !video.videoWidth || video.paused || video.ended) {
                 if(timerRunning) animationFrameId = requestAnimationFrame(detectMotion);
                 return;
             }
+            // Ensure detectionZone dimensions are positive for offscreen canvas
+            const zoneWidthForProcessing = Math.max(1, Math.floor(detectionZone.width));
+            const zoneHeightForProcessing = Math.max(1, Math.floor(detectionZone.height));
+
             const offscreenCanvas = document.createElement('canvas');
             const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
-            offscreenCanvas.width = Math.max(1, Math.floor(detectionZone.width)); // Ensure positive dims
-            offscreenCanvas.height = Math.max(1, Math.floor(detectionZone.height));
+            offscreenCanvas.width = zoneWidthForProcessing;
+            offscreenCanvas.height = zoneHeightForProcessing;
 
+            // Correct for mirrored video when sampling sourceX
             const sourceX = video.videoWidth - detectionZone.x - detectionZone.width;
             offscreenCtx.drawImage(video, 
-                                   sourceX, detectionZone.y, detectionZone.width, detectionZone.height,
-                                   0, 0, offscreenCanvas.width, offscreenCanvas.height); // Draw to offscreen canvas
+                                   sourceX, detectionZone.y, // Source x, y from original video
+                                   detectionZone.width, detectionZone.height, // Source width, height
+                                   0, 0, // Destination x, y on offscreen canvas
+                                   zoneWidthForProcessing, zoneHeightForProcessing); // Destination width, height
             
-            const currentFrameData = offscreenCtx.getImageData(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+            const currentFrameData = offscreenCtx.getImageData(0, 0, zoneWidthForProcessing, zoneHeightForProcessing);
             
             if (prevImageData) {
                 let diff = 0;
@@ -580,18 +671,26 @@
 
                 if (avgDiff > motionThreshold) {
                     triggerLap();
-                    ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
+                    // Visual feedback on main canvas (already scaled for display)
+                    const displayRectX = (detectionZone.x / canvasEl.width) * videoContainer.offsetWidth;
+                    const displayRectY = (detectionZone.y / canvasEl.height) * videoContainer.offsetHeight;
+                    const displayRectWidth = (detectionZone.width / canvasEl.width) * videoContainer.offsetWidth;
+                    const displayRectHeight = (detectionZone.height / canvasEl.height) * videoContainer.offsetHeight;
+                    
+                    // Draw on the main canvas (canvasEl) which is already scaled to display size
+                    // We need to use its own 2D context (ctx) and scale the detectionZone coordinates
+                    // to its internal resolution for drawing.
+                    ctx.fillStyle = 'rgba(255, 255, 0, 0.4)'; // Yellow flash
                     ctx.fillRect(detectionZone.x, detectionZone.y, detectionZone.width, detectionZone.height);
-                    setTimeout(() => drawDetectionZone(), 100);
+                    setTimeout(() => drawDetectionZone(), 150); // Redraw normal zone after flash
                 }
             }
             prevImageData = currentFrameData;
-            animationFrameId = requestAnimationFrame(detectMotion);
+            if (timerRunning) animationFrameId = requestAnimationFrame(detectMotion); // Ensure timerRunning check
         }
 
-        // --- Timer Logic (largely unchanged) ---
         startTimerBtn.addEventListener('click', () => {
-            if (!detectionZone || detectionZone.width < MIN_ZONE_DIMENSION || detectionZone.height < MIN_ZONE_DIMENSION) {
+            if (!detectionZone || !isValidZone(detectionZone)) {
                 statusMessage.textContent = "Please set a valid detection zone first!";
                 statusMessage.className = "status-message status-warning";
                 instructionOverlay.style.display = 'flex';
@@ -605,7 +704,8 @@
             resetTimerBtn.disabled = true;
             sensitivityRange.disabled = true;
             minLapTimeRange.disabled = true;
-            boundaryLines.forEach(line => line.style.pointerEvents = 'none'); // Disable line dragging
+            // Disable line dragging (visual cue or actual pointer-events: none)
+            boundaryLineElements.forEach(line => line.style.pointerEvents = 'none'); 
 
             lapStartTime = performance.now();
             if (currentLap === 0) {
@@ -614,10 +714,10 @@
             lastTriggerTime = performance.now() - MIN_LAP_TIME_MS;
             
             statusMessage.textContent = "Timer started. Listening for motion...";
-            statusMessage.className = "status-message status-info";
+            statusMessage.className = "status-message status-success"; // More positive status
             
             prevImageData = null;
-            detectMotion();
+            animationFrameId = requestAnimationFrame(detectMotion); // Start loop
             updateTotalTimeDisplay();
         });
 
@@ -630,12 +730,12 @@
             resetTimerBtn.disabled = false;
             sensitivityRange.disabled = false;
             minLapTimeRange.disabled = false;
-            boundaryLines.forEach(line => line.style.pointerEvents = 'auto'); // Re-enable line dragging
+            boundaryLineElements.forEach(line => line.style.pointerEvents = 'auto');
             prevImageData = null;
             statusMessage.textContent = "Timer stopped. Adjust zone or start again.";
             statusMessage.className = "status-message status-info";
         });
-
+        
         resetTimerBtn.addEventListener('click', () => {
             if (timerRunning) stopTimerBtn.click(); 
             currentLap = 0;
@@ -652,23 +752,29 @@
             lastLapTimeDisplay.textContent = "0.000s";
             sessionNameInput.value = '';
             
-            // Reset detection zone to default and reposition lines
-            const inset = 0.15;
-            detectionZone = {
-                x: canvas.width * inset,
-                y: canvas.height * inset,
-                width: canvas.width * (1 - 2 * inset),
-                height: canvas.height * (1 - 2 * inset)
+            const inset = 0.20;
+            detectionZone = { // Reset to default
+                x: canvasEl.width * inset,
+                y: canvasEl.height * inset,
+                width: canvasEl.width * (1 - 2 * inset),
+                height: canvasEl.height * (1 - 2 * inset)
             };
             positionLinesFromZone();
             drawDetectionZone();
-            saveDetectionZoneToCookie(); // Save the reset zone
+            saveDetectionZoneToCookie(); 
 
             statusMessage.textContent = "Timer reset. Adjust zone and start.";
             statusMessage.className = "status-message status-info";
             instructionOverlay.style.display = 'flex';
             setTimeout(() => instructionOverlay.style.display = 'none', 3000);
+            startTimerBtn.disabled = false; // Re-enable start button
         });
+
+        // --- Other functions (triggerLap, updateTotalTimeDisplay, updateLapDisplay, etc.) ---
+        // These should be largely okay, but ensure they don't conflict with new variable names
+        // or rely on old state. I'll keep them as they were unless a direct conflict.
+        // (No changes needed to the functions below this line from the previous version,
+        // just ensure variable names like `canvas` are updated to `canvasEl` if they were used there)
 
         function triggerLap() {
             const now = performance.now();
@@ -693,7 +799,7 @@
             if (timerRunning) {
                 const elapsed = (performance.now() - totalStartTime) / 1000;
                 totalTimeDisplay.textContent = elapsed.toFixed(3) + 's';
-                requestAnimationFrame(updateTotalTimeDisplay);
+                if(timerRunning) requestAnimationFrame(updateTotalTimeDisplay); // Check again
             } else if (lapTimes.length > 0) {
                  const sumOfLaps = lapTimes.reduce((sum, t) => sum + t, 0);
                  totalTimeDisplay.textContent = sumOfLaps.toFixed(3) + 's';
@@ -730,7 +836,8 @@
             const lis = lapTimesList.getElementsByTagName('li');
             for (let li of lis) {
                 li.classList.remove('best-lap');
-                if (parseFloat(li.textContent.split(': ')[1]) === best) {
+                // Use a tolerance for float comparison
+                if (Math.abs(parseFloat(li.textContent.split(': ')[1]) - best) < 0.0001) {
                     li.classList.add('best-lap');
                 }
             }
@@ -776,12 +883,13 @@
             minLapTimeValue.textContent = parseFloat(e.target.value).toFixed(1);
             MIN_LAP_TIME_MS = parseFloat(e.target.value) * 1000;
         });
-        MIN_LAP_TIME_MS = parseFloat(minLapTimeRange.value) * 1000;
+        MIN_LAP_TIME_MS = parseFloat(minLapTimeRange.value) * 1000; // Initialize
         minLapTimeValue.textContent = parseFloat(minLapTimeRange.value).toFixed(1);
         sensitivityValue.textContent = sensitivityRange.value;
 
+
         function saveDetectionZoneToCookie() {
-            if (detectionZone) {
+            if (detectionZone && isValidZone(detectionZone)) {
                 document.cookie = `racegow_detectionZone=${JSON.stringify(detectionZone)};max-age=31536000;path=/;samesite=Lax`;
             }
         }
@@ -792,23 +900,21 @@
                 if (name === 'racegow_detectionZone') {
                     try {
                         const parsedZone = JSON.parse(value);
-                        // Basic validation for the loaded zone
-                        if (parsedZone && typeof parsedZone.x === 'number' && typeof parsedZone.y === 'number' &&
-                            typeof parsedZone.width === 'number' && parsedZone.width >= MIN_ZONE_DIMENSION &&
-                            typeof parsedZone.height === 'number' && parsedZone.height >= MIN_ZONE_DIMENSION) {
+                        if (isValidZone(parsedZone)) {
                             detectionZone = parsedZone;
                             console.log("Loaded detection zone from cookie:", detectionZone);
                         } else {
-                            console.warn("Invalid detection zone data in cookie.");
-                            detectionZone = null;
+                            console.warn("Invalid detection zone data in cookie, using default.");
+                            detectionZone = null; 
                         }
                     } catch (e) {
                         console.error("Error parsing detection zone from cookie:", e);
                         detectionZone = null;
                     }
-                    return;
+                    return; 
                 }
             }
+            detectionZone = null; // Ensure it's null if no valid cookie found
         }
 
         saveSessionBtn.addEventListener('click', () => {
