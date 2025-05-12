@@ -2,7 +2,7 @@
 
 **Early alpha version of a web-based lap timer built for RaceGow.**
 
-This tool allows you to time FPV drone laps using just your phone’s camera—no extra hardware required.
+This website allows you to time FPV drone laps using just your phone’s camera—no extra hardware required.
 
 **Live site:** [https://xviper25.github.io/RaceGow_CAM_Timer/](https://xviper25.github.io/RaceGow_CAM_Timer/)
 
